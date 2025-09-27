@@ -297,6 +297,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
     }
   };
 
+  // Define UserType based on expected user object shape
+  type UserType = {
+    name?: string;
+    email?: string;
+    role?: string;
+  };
+
+  const getDisplayName = (user: UserType | null): string => {
+    if (!user) return 'Student';
+
+    // Extract name from email
+    if (user.email) {
+      const nameFromEmail = user.email.split('@')[0];
+
+      // Remove numbers and symbols, keep only letters
+      const cleanedName = nameFromEmail.replace(/[^a-zA-Z]/g, '');
+
+      // Capitalize first letter, lowercase rest
+      return cleanedName
+        ? cleanedName.charAt(0).toUpperCase() + cleanedName.slice(1).toLowerCase()
+        : 'Student';
+    }
+
+    // Fallback 2: Role-based default
+    return user.role === 'admin' ? 'Administrator' : 'Student';
+  };
+
   // Application Detail Modal (View Only)
   const ApplicationModal = () => {
     if (!selectedApplication) return null;
@@ -1117,7 +1144,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-2">Welcome back, {user?.name || 'Admin'}</p>
+          <p className="text-gray-600 mt-2">Welcome back, {getDisplayName(user)}</p>
         </div>
 
         {/* Navigation Tabs */}

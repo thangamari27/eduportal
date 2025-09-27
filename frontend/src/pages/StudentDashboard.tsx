@@ -13,6 +13,14 @@ import {
   TrendingUp
 } from 'lucide-react';
 
+interface UserType {
+  name?: string;
+  email?: string;
+  role?: string;
+  applicationStatus?: string;
+  // Add other user properties as needed
+}
+
 interface StudentDashboardProps {
   user: any;
   onNavigate: (page: string) => void;
@@ -129,12 +137,33 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onNavigate })
     }
   ];
 
+  const getDisplayName = (user: UserType | null): string => {
+    if (!user) return 'Student';
+
+    // Extract name from email
+    if (user.email) {
+      const nameFromEmail = user.email.split('@')[0];
+
+      // Remove numbers and symbols, keep only letters
+      const cleanedName = nameFromEmail.replace(/[^a-zA-Z]/g, '');
+
+      // Capitalize first letter, lowercase rest
+      return cleanedName
+        ? cleanedName.charAt(0).toUpperCase() + cleanedName.slice(1).toLowerCase()
+        : 'Student';
+    }
+
+    // Fallback 2: Role-based default
+    return user.role === 'admin' ? 'Administrator' : 'Student';
+  };
+
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.name || 'Student'}!</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Welcome back, {getDisplayName(user)}</h1>
           <p className="text-gray-600 mt-2">Track your application progress and manage your profile</p>
         </div>
 
