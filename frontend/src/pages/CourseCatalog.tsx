@@ -19,25 +19,36 @@ const CourseCatalog: React.FC<CourseCatalogProps> = ({ onNavigate, user }) => {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch courses from backend
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const coursesData = await courseService.getAllCourses();
+useEffect(() => {
+  const fetchCourses = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const coursesData = await courseService.getAllCourses();
+      
+      // Check if we got any courses
+      if (coursesData && coursesData.length > 0) {
         setCourses(coursesData);
-      } catch (err) {
-        console.error('Error fetching courses:', err);
-        setError('Failed to load courses. Please try again later.');
-        // Fallback to sample data if API fails
-        setCourses(sampleCourses);
-      } finally {
-        setLoading(false);
+      } else {
+        throw new Error('No courses available from server');
       }
-    };
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load courses. Please try again later.';
+      setError(errorMessage);
+      
+      // Fallback to sample data if API fails
+      if (sampleCourses.length > 0) {
+        setCourses(sampleCourses);
+        setError('Using sample data: ' + errorMessage);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchCourses();
-  }, []);
+  fetchCourses();
+}, []);
 
   // Sample data for fallback (keep your existing sampleCourses)
   const sampleCourses: Course[] = [
@@ -151,7 +162,55 @@ const CourseCatalog: React.FC<CourseCatalogProps> = ({ onNavigate, user }) => {
         </div>
 
         {/* Filters Section - Rest of your existing JSX remains the same */}
-        {/* ... your existing filters JSX ... */}
+        {/* Filters Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search courses..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Category Filter */}
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {categories.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+
+            {/* Level Filter */}
+            <select
+              value={selectedLevel}
+              onChange={(e) => setSelectedLevel(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {levels.map(level => (
+                <option key={level} value={level}>{level}</option>
+              ))}
+            </select>
+
+            {/* Price Range Filter */}
+            <select
+              value={priceRange}
+              onChange={(e) => setPriceRange(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {priceRanges.map(range => (
+                <option key={range} value={range}>{range}</option>
+              ))}
+            </select>
+          </div>
+        </div>
 
         {/* Compare Bar */}
         {compareList.length > 0 && (

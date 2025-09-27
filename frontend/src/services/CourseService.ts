@@ -7,67 +7,73 @@ export interface Course {
   fees: number;
   duration: string;
   eligibility: string;
-  fees_link: string;
-  brochure_link: string;
-  brochure_name: string;
-  apply_link: string;
-  apply_name: string;
+  fees_link: string | null;
+  brochure_link: string | null;
+  brochure_name: string | null;
+  apply_link: string | null;
+  apply_name: string | null;
   category: string;
   level: string;
   rating: number;
   students: number;
   description: string;
   features: string[];
-  totalSeats?: number;       
-  availableSeats?: number;   
+  totalSeats?: number;
+  availableSeats?: number;
 }
 
 export interface BackendCourse {
   id: number;
   name: string;
-  fees: number;
+  fees: number | string;
   duration: string;
   eligibility: string;
-  fees_link: string;
-  brochure_link: string;
-  brochure_name: string;
-  apply_link: string;
-  apply_name: string;
+  fees_link: string | null;
+  brochure_link: string | null;
+  brochure_name: string | null;
+  apply_link: string | null;
+  apply_name: string | null;
+  description?: string;
   category?: string;
   level?: string;
   rating?: number;
   students?: number;
-  description?: string;
-  CourseDetails?: CourseDetail[];
-  CourseSeats?: CourseSeat[];
+  courseDetails?: CourseDetail[];
+  courseSeats?: CourseSeat[];
 }
 
 interface CourseDetail {
   id: number;
-  course_id: number;
-  feature_name: string;
-  feature_description: string;
+  program: string;
+  fees: number | string;
+  eligibility: string;
 }
 
 interface CourseSeat {
   id: number;
-  course_id: number;
-  seat_type?: string;
-  total_seats?: number;
-  available_seats?: number;
+  seats: number;
 }
 
 class CourseService {
-  private async request(endpoint: string, options: RequestInit = {}) {
+  private async request(endpoint: string, options: RequestInit = {}, requiresAuth: boolean = false) {
     const url = `${API_BASE_URL}${endpoint}`;
+    const token = requiresAuth ? localStorage.getItem('authToken') || sessionStorage.getItem('authToken') : null;
+
     try {
       const response = await fetch(url, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
+          ...(token && requiresAuth ? { 'Authorization': `Bearer ${token}` } : {}),
           ...options.headers,
         },
       });
+
+      if (response.status === 401 && requiresAuth) {
+        localStorage.removeItem('authToken');
+        sessionStorage.removeItem('authToken');
+        throw new Error('Authentication required');
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -81,17 +87,17 @@ class CourseService {
   }
 
   private transformCourse(backendCourse: BackendCourse): Course {
-    const features = Array.isArray(backendCourse.CourseDetails) && backendCourse.CourseDetails.length > 0
-      ? backendCourse.CourseDetails.map(detail => detail.feature_name || 'Feature')
+    const features = Array.isArray(backendCourse.courseDetails) && backendCourse.courseDetails.length > 0
+      ? backendCourse.courseDetails.map(d => d.program || 'Program')
       : ['Expert Faculty', 'Hands-on Learning', 'Industry Connections', 'Career Support'];
 
-    const totalSeats = backendCourse.CourseSeats?.reduce((sum, seat) => sum + (seat.total_seats || 0), 0);
-    const availableSeats = backendCourse.CourseSeats?.reduce((sum, seat) => sum + (seat.available_seats || 0), 0);
+    const totalSeats = backendCourse.courseSeats?.reduce((sum, seat) => sum + (seat.seats || 0), 0);
+    const availableSeats = totalSeats; // backend not sending available, so assume all seats available
 
     return {
       id: backendCourse.id.toString(),
       name: backendCourse.name,
-      fees: backendCourse.fees,
+      fees: Number(backendCourse.fees),
       duration: backendCourse.duration,
       eligibility: backendCourse.eligibility,
       fees_link: backendCourse.fees_link,
@@ -106,64 +112,60 @@ class CourseService {
       description: backendCourse.description || `Learn about ${backendCourse.name} in our comprehensive program.`,
       features,
       totalSeats,
-      availableSeats
+      availableSeats,
     };
   }
 
+  // Public - no auth required
   async getAllCourses(): Promise<Course[]> {
-    const endpoints = ['/course-details/course_details_seats', '/courses'];
+    try {
+      const data = await this.request('/courses', {}, false);
 
-    for (const endpoint of endpoints) {
-      try {
-        const backendCourses: BackendCourse[] = await this.request(endpoint);
-        if (Array.isArray(backendCourses)) {
-          return backendCourses.map(course => this.transformCourse(course));
-        }
-      } catch (error) {
-        console.warn(`[CourseService] Failed endpoint ${endpoint}:`, error);
+      if (Array.isArray(data)) {
+        return data.map(course => this.transformCourse(course));
+      } else if (data && Array.isArray(data.courses)) {
+        return data.courses.map((course: BackendCourse) => this.transformCourse(course));
       }
-    }
 
-    console.error('[CourseService] All endpoints failed.');
-    return []; // Return empty array instead of throwing, frontend can handle empty data
+      throw new Error('No courses available from server');
+    } catch (error) {
+      console.error('[CourseService] getAllCourses failed:', error);
+      return [];
+    }
   }
 
   async getCourseById(id: string): Promise<Course | null> {
     try {
-      const backendCourse: BackendCourse = await this.request(`/courses/${id}`);
-      return this.transformCourse(backendCourse);
+      const data = await this.request(`/courses/${id}`, {}, false);
+      if (data && data.course) {
+        return this.transformCourse(data.course);
+      }
+      return this.transformCourse(data);
     } catch (error) {
       console.error(`[CourseService] getCourseById failed for id ${id}:`, error);
       return null;
     }
   }
 
-  async searchCourses(filters: {
-    searchTerm?: string;
-    category?: string;
-    level?: string;
-    priceRange?: string;
-  }): Promise<Course[]> {
-    const allCourses = await this.getAllCourses();
+  // Admin - auth required
+  async createCourse(courseData: Partial<Course>): Promise<Course> {
+    const data = await this.request('/courses/admin/course', {
+      method: 'POST',
+      body: JSON.stringify(courseData),
+    }, true);
+    return this.transformCourse(data);
+  }
 
-    return allCourses.filter(course => {
-      const matchesSearch = !filters.searchTerm || 
-        course.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        course.description.toLowerCase().includes(filters.searchTerm.toLowerCase());
-      
-      const matchesCategory = !filters.category || filters.category === 'All' || 
-        course.category === filters.category;
-      
-      const matchesLevel = !filters.level || filters.level === 'All' || 
-        course.level === filters.level;
-      
-      const matchesPrice = !filters.priceRange || filters.priceRange === 'All' ||
-        (filters.priceRange === 'Under ₹15,000' && course.fees < 15000) ||
-        (filters.priceRange === '₹15,000 - ₹20,000' && course.fees >= 15000 && course.fees <= 20000) ||
-        (filters.priceRange === 'Above ₹20,000' && course.fees > 20000);
+  async updateCourse(id: string, courseData: Partial<Course>): Promise<Course> {
+    const data = await this.request(`/courses/admin/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(courseData),
+    }, true);
+    return this.transformCourse(data);
+  }
 
-      return matchesSearch && matchesCategory && matchesLevel && matchesPrice;
-    });
+  async deleteCourse(id: string): Promise<void> {
+    await this.request(`/courses/admin/${id}`, { method: 'DELETE' }, true);
   }
 }
 

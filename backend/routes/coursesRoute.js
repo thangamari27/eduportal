@@ -3,12 +3,12 @@ const router = express.Router();
 const courseController = require('../controllers/courseController');
 const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
 
-// Public routes (optional - if you want some courses to be publicly accessible)
-// router.get('/public', courseController.getAllCourses);
-
 // User routes (require authentication)
-router.get('/', authenticateToken, courseController.getAllCourses);
-router.get('/:id', authenticateToken, courseController.getCourseById);
+router.get('/', courseController.getAllCourses);
+router.get('/:id', courseController.getCourseById);
+router.get('/course-details', courseController.getAllCourseDetails);
+router.get('/course-seats', courseController.getAllCourseSeats);
+router.get('/course-details-seats/:courseId', courseController.getCourseDetailsAndSeats);
 
 // Admin routes (require admin authentication)
 router.post('/admin/course', authenticateAdmin, courseController.createCourse);

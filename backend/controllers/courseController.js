@@ -1,6 +1,6 @@
 const { Course, CourseDetail, CourseSeat, sequelize } = require('../models');
 
-// User: Get all courses with details and seats
+// Public: Get all courses with details and seats
 const getAllCourses = async (req, res) => {
   try {
     const courses = await Course.findAll({
@@ -30,7 +30,7 @@ const getAllCourses = async (req, res) => {
   }
 };
 
-// User: Get single course by ID
+// Public: Get single course by ID
 const getCourseById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -58,6 +58,82 @@ const getCourseById = async (req, res) => {
   } catch (error) {
     console.error('Get course by ID error:', error);
     res.status(500).json({ error: 'Failed to retrieve course' });
+  }
+};
+
+// Public: Get all course details
+const getAllCourseDetails = async (req, res) => {
+  try {
+    const courseDetails = await CourseDetail.findAll({
+      include: [
+        {
+          model: Course,
+          as: 'course',
+          attributes: ['id', 'name', 'duration']
+        }
+      ],
+      order: [['id', 'ASC']]
+    });
+
+    res.json({
+      message: 'Course details retrieved successfully',
+      count: courseDetails.length,
+      courseDetails
+    });
+  } catch (error) {
+    console.error('Get all course details error:', error);
+    res.status(500).json({ error: 'Failed to retrieve course details' });
+  }
+};
+
+// Public: Get all course seats
+const getAllCourseSeats = async (req, res) => {
+  try {
+    const courseSeats = await CourseSeat.findAll({
+      include: [
+        {
+          model: Course,
+          as: 'course',
+          attributes: ['id', 'name']
+        }
+      ],
+      order: [['id', 'ASC']]
+    });
+
+    res.json({
+      message: 'Course seats retrieved successfully',
+      count: courseSeats.length,
+      courseSeats
+    });
+  } catch (error) {
+    console.error('Get all course seats error:', error);
+    res.status(500).json({ error: 'Failed to retrieve course seats' });
+  }
+};
+
+// Public: Get course details and seats by course ID
+const getCourseDetailsAndSeats = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+
+    const courseDetails = await CourseDetail.findAll({
+      where: { course_id: courseId },
+      order: [['id', 'ASC']]
+    });
+
+    const courseSeats = await CourseSeat.findAll({
+      where: { course_id: courseId },
+      order: [['id', 'ASC']]
+    });
+
+    res.json({
+      message: 'Course details and seats retrieved successfully',
+      courseDetails,
+      courseSeats
+    });
+  } catch (error) {
+    console.error('Get course details and seats error:', error);
+    res.status(500).json({ error: 'Failed to retrieve course details and seats' });
   }
 };
 
@@ -125,7 +201,18 @@ const createCourse = async (req, res) => {
 
     // Fetch the complete course with associations
     const createdCourse = await Course.findByPk(course.id, {
-      include: ['courseDetails', 'courseSeats']
+      include: [
+        {
+          model: CourseDetail,
+          as: 'courseDetails',
+          attributes: ['id', 'program', 'fees', 'eligibility']
+        },
+        {
+          model: CourseSeat,
+          as: 'courseSeats',
+          attributes: ['id', 'seats']
+        }
+      ]
     });
 
     res.status(201).json({
@@ -167,7 +254,18 @@ const updateCourse = async (req, res) => {
 
     // Fetch updated course with associations
     const updatedCourse = await Course.findByPk(id, {
-      include: ['courseDetails', 'courseSeats']
+      include: [
+        {
+          model: CourseDetail,
+          as: 'courseDetails',
+          attributes: ['id', 'program', 'fees', 'eligibility']
+        },
+        {
+          model: CourseSeat,
+          as: 'courseSeats',
+          attributes: ['id', 'seats']
+        }
+      ]
     });
 
     res.json({
@@ -424,9 +522,12 @@ const deleteCourseSeat = async (req, res) => {
 };
 
 module.exports = {
-  // User routes
+  // Public routes
   getAllCourses,
   getCourseById,
+  getAllCourseDetails,
+  getAllCourseSeats,
+  getCourseDetailsAndSeats,
   
   // Admin course routes
   createCourse,
