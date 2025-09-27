@@ -1,0 +1,249 @@
+1️⃣ User Endpoints
+🔹 Register User
+
+POST /api/users/register
+
+Request JSON
+{
+  "email": "alice.smith@example.com",
+  "phone_no": "9876543210",
+  "password": "SecurePass123"
+}
+
+
+Response JSON
+{
+  "success": true,
+  "message": "User registered successfully",
+  "data": {
+    "id": 1,
+    "email": "alice.smith@example.com",
+    "phone_no": "9876543210",
+    "created_at": "2025-09-27T10:00:00.000Z"
+  }
+}
+
+result = pass
+************************************************************************
+
+🔹 User Login
+
+POST /api/users/login
+
+Request JSON
+{
+  "email": "alice.smith@example.com",
+  "password": "SecurePass123"
+}
+
+Response JSON
+{
+  "success": true,
+  "message": "Login successful",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+}
+
+result = pass
+
+************************************************************************
+
+
+🔹 Get User Profile
+
+GET /api/users/:id
+
+Response JSON
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "email": "alice.smith@example.com",
+    "phone_no": "9876543210",
+    "created_at": "2025-09-27T10:00:00.000Z"
+  }
+}
+
+result = Pending
+
+************************************************************************
+
+
+2️⃣ Course Endpoints
+🔹 Get All Courses
+
+GET /api/courses
+
+Response JSON
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Computer Science and Engineering",
+      "fees": 250000.0,
+      "duration": "4 years",
+      "eligibility": "12th with Physics, Chemistry, Mathematics"
+    },
+    {
+      "id": 2,
+      "name": "Mechanical Engineering",
+      "fees": 220000.0,
+      "duration": "4 years",
+      "eligibility": "12th with Physics, Chemistry, Mathematics"
+    }
+  ]
+}
+
+result = pass
+
+************************************************************************
+
+
+🔹 Get Course Details by ID
+
+GET /api/courses/1
+
+Response JSON
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Computer Science and Engineering",
+    "fees": 250000.0,
+    "duration": "4 years",
+    "eligibility": "12th with Physics, Chemistry, Mathematics",
+    "programs": [
+      {
+        "id": 1,
+        "program": "B.Tech CSE (AI & ML)",
+        "fees": 260000.0,
+        "eligibility": "12th with PCM + Entrance Exam"
+      },
+      {
+        "id": 2,
+        "program": "B.Tech CSE (Cybersecurity)",
+        "fees": 255000.0,
+        "eligibility": "12th with PCM + Entrance Exam"
+      }
+    ],
+    "seats": 120
+  }
+}
+
+result = pass
+
+************************************************************************
+
+
+🔹 Add a New Course (Admin Only)
+
+POST /api/courses/admin/course
+
+Request JSON
+{
+  "name": "Artificial Intelligence",
+  "fees": 300000.0,
+  "duration": "4 years",
+  "eligibility": "12th with PCM + Entrance Exam"
+}
+
+Response JSON
+{
+  "success": true,
+  "message": "Course added successfully",
+  "data": {
+    "id": 6,
+    "name": "Artificial Intelligence",
+    "fees": 300000.0,
+    "duration": "4 years"
+  }
+}
+
+result = pass
+
+************************************************************************
+
+
+3️⃣ Admission Endpoints
+🔹 Submit Application
+
+POST /api/admissions/apply
+
+Request JSON
+{
+  "admission_id": "ADM-2025-0001",
+  "student_id": "STU-000001",
+  "email": "alice.smith@example.com",
+  "course_id": 1
+}
+
+Response JSON
+{
+  "success": true,
+  "message": "Application submitted successfully",
+  "data": {
+    "admission_id": "ADM-2025-0001",
+    "student_id": "STU-000001",
+    "course_id": 1,
+    "application_status": "Pending"
+  }
+}
+
+🔹 Get Admission Status
+
+GET /api/admissions/:student_id
+
+Response JSON
+{
+  "success": true,
+  "data": {
+    "admission_id": "ADM-2025-0001",
+    "student_id": "STU-000001",
+    "course_id": 1,
+    "application_status": "Pending",
+    "admission_timestamp": "2025-09-27T11:00:00.000Z"
+  }
+}
+
+🔹 Update Application Status (Admin Only)
+
+PUT /api/admissions/:admission_id
+
+Request JSON
+{
+  "application_status": "Approved"
+}
+
+Response JSON
+{
+  "success": true,
+  "message": "Application status updated successfully",
+  "data": {
+    "admission_id": "ADM-2025-0001",
+    "application_status": "Approved"
+  }
+}
+
+4️⃣ Thunder Client Setup (Quick Import Idea)
+
+Create environment variable {{base_url}} = http://localhost:5000/api
+
+Requests:
+
+POST {{base_url}}/users/register
+
+POST {{base_url}}/users/login
+
+GET {{base_url}}/users/1
+
+GET {{base_url}}/courses
+
+GET {{base_url}}/courses/1
+
+POST {{base_url}}/courses
+
+POST {{base_url}}/admissions/apply
+
+GET {{base_url}}/admissions/STU-000001
+
+PUT {{base_url}}/admissions/ADM-2025-0001

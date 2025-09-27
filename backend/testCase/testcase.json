@@ -1,0 +1,111 @@
+[
+    {
+        "email": "student@example.com",
+        "phone_no": "9876543210",
+        "password": "password123"
+    },
+    {
+        "email": "student@example.com",
+        "password": "password123"
+    },
+    [
+        {
+            "student_id": "STU-000003",
+            "first_name": "bala",
+            "last_name": "ganesh",
+            "email": "bala1234@gmail.com",
+            "phone_number": "9876543210",
+            "aadhaar_number": "123456789012",
+            "blood_group": "O+",
+            "date_of_birth": "2000-01-01",
+            "gender": "Male",
+            "address": "123 Main St, City, State",
+            "father_name": "Robert Doe",
+            "father_occupation": "Engineer",
+            "mother_name": "Jane Doe",
+            "mother_occupation": "Teacher",
+            "annual_income": "500000.00",
+            "community": "General",
+            "caste": "Not specified",
+            "religion": "Not specified",
+            "nationality": "Indian"
+        },
+        {
+            "academic_id": "ACAD-000003",
+            "student_id": "STU-000003",
+            "school_name": "ABC Higher Secondary School",
+            "exam_register_number": "REG12345",
+            "emis_no": "EMIS67890",
+            "subjects": ["Maths", "Physics", "Chemistry", "Biology"],
+            "total_marks": 480,
+            "mark_percentage": 96.0,
+            "cutoff_marks": 198.5,
+            "month_year_passing": "03-2020",
+            "course_type": "Higher Secondary",
+            "course_name": "Science Group",
+            "course_mode": "Regular"
+        },
+        {
+            "student_id": "STU-000003",
+            "physically_challenged": "No",
+            "ex_serviceman": "No",
+            "activities": "Football, Music Club"
+        }
+
+
+    ],
+    [
+        {
+            "id": 1,
+            "name": "Computer Science",
+            "fees": "100000.00",
+            "duration": "4 years",
+            "eligibility": "10+2 with Physics, Chemistry, Maths",
+            "fees_link": "/fees/cs",
+            "brochure_link": "/brochure/cs",
+            "brochure_name": "CS Brochure",
+            "apply_link": "/apply/cs",
+            "apply_name": "Apply for CS",
+            "CourseDetails": [
+            {
+                "id": 1,
+                "course_id": 1,
+                "program": "B.Tech",
+                "fees": "100000.00",
+                "eligibility": "10+2 with PCM"
+            }
+            ],
+            "CourseSeats": [
+            {
+                "id": 1,
+                "course_id": 1,
+                "seats": 60
+            }
+            ]
+        }
+    ],
+
+
+    {
+        "name": "Electrical Engineering",
+        "fees": "90000.00",
+        "duration": "4 years",
+        "eligibility": "10+2 with Physics, Chemistry, Maths",
+        "fees_link": "/fees/ee",
+        "brochure_link": "/brochure/ee",
+        "brochure_name": "EE Brochure",
+        "apply_link": "/apply/ee",
+        "apply_name": "Apply for EE"
+    },
+
+    {
+        "student_id": "STU-000003",
+        "email": "bala1234@gmail.com"
+    },
+
+
+
+    {
+        "application_status": "Approved"
+    }
+]
