@@ -18,8 +18,8 @@ export interface Course {
   students: number;
   description: string;
   features: string[];
-  totalSeats?: number;       // Optional seat info
-  availableSeats?: number;   // Optional seat info
+  totalSeats?: number;       
+  availableSeats?: number;   
 }
 
 export interface BackendCourse {

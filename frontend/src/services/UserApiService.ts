@@ -75,7 +75,7 @@ class ApiService {
     loginData: LoginData,
     userType: 'user' | 'admin' = 'user'
   ): Promise<{ user: User | Admin; token: string; userType: 'user' | 'admin' }> {
-    const endpoint = userType === 'admin' ? '/admin/login' : '/users/login';
+    const endpoint = userType === 'admin' ? '/users/admin/login' : '/users/login';
 
     const data = await this.request(endpoint, {
       method: 'POST',
@@ -109,7 +109,7 @@ class ApiService {
   }
 
   async adminLogin(loginData: LoginData): Promise<{ admin: Admin; token: string }> {
-    const data = await this.request('/admin/login', {
+    const data = await this.request('/users/admin/login', {
       method: 'POST',
       body: JSON.stringify(loginData),
     });

@@ -33,29 +33,17 @@ function App() {
   const [user, setUser] = useState<UserType | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-
-      // Automatically set dashboard page based on role
-      if (parsedUser.role === 'admin') {
-        setCurrentPage('admin-dashboard');
-      } else if (parsedUser.role === 'student') {
-        setCurrentPage('student-dashboard');
-      } else {
-        setCurrentPage('home');
-      }
-    }
-  }, []);
-
-  // Handle login (save session + redirect)
   const handleLogin = (userData: UserType) => {
-    setUser(userData);
-    localStorage.setItem('currentUser', JSON.stringify(userData));
-    setCurrentPage(userData.role === 'admin' ? 'admin-dashboard' : 'student-dashboard');
-  };
+  setUser(userData);
+  localStorage.setItem('currentUser', JSON.stringify(userData));
+  
+  // Redirect based on role
+  if (userData.role === 'admin') {
+    setCurrentPage('admin-dashboard');
+  } else {
+    setCurrentPage('student-dashboard');
+  }
+};
 
   // Handle logout (clear session + redirect)
   const handleLogout = () => {

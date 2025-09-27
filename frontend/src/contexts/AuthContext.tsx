@@ -6,10 +6,12 @@ export type UserRole = 'student' | 'admin';
 
 export interface User {
   id: string;
-  student_id?: string;
   email: string;
+  name?: string;
   phone_no?: string;
-  role: UserRole;
+  student_id?: string;
+  role: 'student' | 'admin';
+  applicationStatus?: string;
   token: string;
 }
 
@@ -76,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userObj = createUserObject(userData, token, role);
 
       setUser(userObj);
-      setUserType(resolvedType);
+      setUserType(resolvedType as 'user' | 'admin');
 
       localStorage.setItem('authToken', token);
       localStorage.setItem('user', JSON.stringify(userObj));
@@ -87,36 +89,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const smartLogin = async (email: string, password: string) => {
-    setIsLoading(true);
+  setIsLoading(true);
+  try {
+    let userData, token, resolvedType;
+
+    // Try student login first
     try {
-      // Try user login first
-      try {
-        const { user: userData, token } = await apiService.login({ email, password }, 'user');
-        const userObj: User = { ...userData, token, role: 'student' };
-
-        setUser(userObj);
-        setUserType('user');
-        localStorage.setItem('user', JSON.stringify(userObj));
-        localStorage.setItem('userType', 'user');
-        localStorage.setItem('authToken', token);
-        return;
-      } catch {
-        // If user login fails, try admin
-        const { admin: adminData, token } = await apiService.adminLogin({ email, password });
-        const userObj: User = { ...adminData, token, role: 'admin' };
-
-        setUser(userObj);
-        setUserType('admin');
-        localStorage.setItem('user', JSON.stringify(userObj));
-        localStorage.setItem('userType', 'admin');
-        localStorage.setItem('authToken', token);
-      }
-    } catch (error: any) {
-      throw new Error(error.message || 'Invalid credentials');
-    } finally {
-      setIsLoading(false);
+      const result = await apiService.login({ email, password }, 'user');
+      userData = result.user;
+      token = result.token;
+      resolvedType = 'user';
+    } catch (studentError) {
+      // If student login fails, try admin
+      const result = await apiService.adminLogin({ email, password });
+      userData = result.admin;
+      token = result.token;
+      resolvedType = 'admin';
     }
-  };
+
+    const role: UserRole = resolvedType === 'admin' ? 'admin' : 'student';
+    const userObj = createUserObject(userData, token, role);
+
+    setUser(userObj);
+    setUserType(resolvedType as 'user' | 'admin');
+
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('user', JSON.stringify(userObj));
+    localStorage.setItem('userType', resolvedType);
+
+  } catch (error: any) {
+    throw new Error(error.message || 'Invalid credentials');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const adminLogin = async (email: string, password: string) => {
     setIsLoading(true);

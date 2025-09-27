@@ -3,7 +3,7 @@ import { Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LoginPageProps {
-  onLogin: (user: any, userType: 'user' | 'admin') => void;
+  onLogin: (user: any) => void; 
   onNavigate: (page: string) => void;
 }
 
@@ -47,25 +47,26 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onNavigate }) => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    try {
-      if (isLogin) {
-        if (loginMode === 'auto') await smartLogin(formData.email, formData.password);
-        else if (loginMode === 'admin') await adminLogin(formData.email, formData.password);
-        else await login(formData.email, formData.password, 'user');
-      } else {
-        await register(formData.email, formData.phone, formData.password);
-      }
-
-      const storedUser = localStorage.getItem('user');
-      const storedUserType = localStorage.getItem('userType') as 'user' | 'admin';
-      if (storedUser && storedUserType) onLogin(JSON.parse(storedUser), storedUserType);
-    } catch (error: any) {
-      setErrors({ submit: error.message || 'An error occurred during authentication' });
+  try {
+    if (isLogin) {
+      if (loginMode === 'auto') await smartLogin(formData.email, formData.password);
+      else if (loginMode === 'admin') await adminLogin(formData.email, formData.password);
+      else await login(formData.email, formData.password, 'user');
+    } else {
+      await register(formData.email, formData.phone, formData.password);
     }
-  };
+
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      onLogin(JSON.parse(storedUser)); // Only pass user
+    }
+  } catch (error: any) {
+    setErrors({ submit: error.message || 'An error occurred during authentication' });
+  }
+};
 
   // const demoLogin = async (type: 'student' | 'admin') => {
   //   try {
