@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { User, AdminUser } = require('../models');
+const { User, AdminUser, PersonalInfo, AdminProfile } = require('../models');
 const { generateStudentId } = require('../utils/idGenerator');
 
 // User Registration
@@ -104,61 +104,6 @@ const loginUser = async (req, res) => {
   }
 };
 
-// Get User Profile
-const getUserProfile = async (req, res) => {
-  try {
-    const user = await User.findByPk(req.user.id, {
-      attributes: { exclude: ['password_hash'] },
-      include: [{
-        association: 'personalInfo',
-        attributes: ['student_id', 'first_name', 'last_name']
-      }]
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({ user });
-  } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({ error: 'Failed to get user profile' });
-  }
-};
-
-// Update User Profile
-const updateUserProfile = async (req, res) => {
-  try {
-    const { email, phone_no } = req.body;
-    const userId = req.user.id;
-
-    // Check if email is being changed and if it's already taken
-    if (email) {
-      const existingUser = await User.findOne({ where: { email } });
-      if (existingUser && existingUser.id !== userId) {
-        return res.status(400).json({ error: 'Email already taken' });
-      }
-    }
-
-    await User.update(
-      { email, phone_no },
-      { where: { id: userId } }
-    );
-
-    const updatedUser = await User.findByPk(userId, {
-      attributes: { exclude: ['password_hash'] }
-    });
-
-    res.json({
-      message: 'Profile updated successfully',
-      user: updatedUser
-    });
-
-  } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Failed to update profile' });
-  }
-};
 
 // Admin Login
 const loginAdmin = async (req, res) => {
@@ -269,11 +214,197 @@ const changePassword = async (req, res) => {
   }
 };
 
+// ---------------------
+// GET User Profile
+// ---------------------
+const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password_hash'] },
+      include: [{
+        model: PersonalInfo,
+        as: 'personalInfo',
+        required: false
+      }]
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const profileData = user.personalInfo ? {
+      first_name: user.personalInfo.first_name,
+      last_name: user.personalInfo.last_name,
+      email: user.personalInfo.email,
+      phone_number: user.personalInfo.phone_number,
+      date_of_birth: user.personalInfo.date_of_birth,
+      gender: user.personalInfo.gender,
+      address: user.personalInfo.address
+    } : {
+      first_name: '',
+      last_name: '',
+      email: user.email,
+      phone_number: user.phone_no,
+      date_of_birth: null,
+      gender: '',
+      address: ''
+    };
+
+    res.json({ success: true, user: { ...user.toJSON(), profileData } });
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    res.status(500).json({ error: 'Failed to get user profile' });
+  }
+};
+
+// ---------------------
+// PUT / UPDATE User Profile
+// ---------------------
+const updateUserProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { profileData } = req.body;
+
+    if (!profileData) {
+      return res.status(400).json({ error: 'Profile data is required' });
+    }
+
+    const currentUser = await User.findByPk(userId);
+    if (!currentUser) return res.status(404).json({ error: 'User not found' });
+
+    // Allowed fields for user
+    const allowedFields = ['first_name', 'last_name', 'date_of_birth', 'gender', 'address'];
+    const updates = {};
+    allowedFields.forEach(f => {
+      if (profileData[f] !== undefined) updates[f] = profileData[f];
+    });
+
+    if (!currentUser.student_id) {
+      const student_id = generateStudentId ? generateStudentId(currentUser.id) : `STU-${Date.now()}`;
+      await User.update({ student_id }, { where: { id: userId } });
+      currentUser.student_id = student_id;
+    }
+
+    // Upsert personal info
+    const [personalInfo, created] = await PersonalInfo.findOrCreate({
+      where: { student_id: currentUser.student_id },
+      defaults: {
+        student_id: currentUser.student_id,
+        email: currentUser.email,
+        phone_number: currentUser.phone_no,
+        ...updates
+      }
+    });
+
+    if (!created) {
+      await PersonalInfo.update(updates, { where: { student_id: currentUser.student_id } });
+    }
+
+    const updatedInfo = await PersonalInfo.findOne({ where: { student_id: currentUser.student_id } });
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      personalInfo: updatedInfo
+    });
+  } catch (error) {
+    console.error('Update user profile error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+};
+
+// ---------------------
+// GET Admin Profile
+// ---------------------
+const getAdminProfile = async (req, res) => {
+  try {
+    const admin = await AdminUser.findByPk(req.admin.id, {
+      attributes: { exclude: ['password'] },
+      include: [{
+        model: AdminProfile,
+        as: 'adminProfile',
+        required: false
+      }]
+    });
+
+    if (!admin) return res.status(404).json({ error: 'Admin not found' });
+
+    const profileData = admin.adminProfile ? {
+      first_name: admin.adminProfile.first_name,
+      last_name: admin.adminProfile.last_name,
+      email: admin.adminProfile.email,
+      phone_number: admin.adminProfile.phone_number,
+      date_of_birth: admin.adminProfile.date_of_birth,
+      gender: admin.adminProfile.gender,
+      address: admin.adminProfile.address
+    } : {
+      first_name: '',
+      last_name: '',
+      email: admin.email,
+      phone_number: '',
+      date_of_birth: null,
+      gender: '',
+      address: ''
+    };
+
+    res.json({ success: true, admin: { ...admin.toJSON(), profileData } });
+  } catch (error) {
+    console.error('Get admin profile error:', error);
+    res.status(500).json({ error: 'Failed to get admin profile' });
+  }
+};
+
+// ---------------------
+// PUT / UPDATE Admin Profile
+// ---------------------
+const updateAdminProfile = async (req, res) => {
+  try {
+    const adminId = req.admin.id;
+    const { profileData } = req.body;
+
+    if (!profileData) return res.status(400).json({ error: 'Profile data is required' });
+
+    const currentAdmin = await AdminUser.findByPk(adminId);
+    if (!currentAdmin) return res.status(404).json({ error: 'Admin not found' });
+
+    const allowedFields = ['first_name', 'last_name', 'phone_number', 'date_of_birth', 'gender', 'address'];
+    const updates = {};
+    allowedFields.forEach(f => {
+      if (profileData[f] !== undefined) updates[f] = profileData[f];
+    });
+
+    const adminProfileData = { ...updates, email: currentAdmin.email };
+
+    let existingProfile = await AdminProfile.findOne({ where: { admin_id: adminId } });
+    if (existingProfile) {
+      await AdminProfile.update(adminProfileData, { where: { admin_id: adminId } });
+    } else {
+      await AdminProfile.create({ admin_id: adminId, ...adminProfileData });
+    }
+
+    const updatedAdmin = await AdminUser.findByPk(adminId, {
+      attributes: { exclude: ['password'] },
+      include: [{ model: AdminProfile, as: 'adminProfile', required: false }]
+    });
+
+    res.json({
+      success: true,
+      message: 'Admin profile updated successfully',
+      admin: updatedAdmin
+    });
+  } catch (error) {
+    console.error('Update admin profile error:', error);
+    res.status(500).json({ error: 'Failed to update admin profile' });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getUserProfile,
   updateUserProfile,
+  getAdminProfile,
+  updateAdminProfile,
   loginAdmin,
   getAllUsers,
   changePassword

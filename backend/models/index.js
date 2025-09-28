@@ -4,6 +4,7 @@ const sequelize = require('../config/db');
 // Import model functions
 const UserModel = require('./user');
 const AdminUserModel = require('./AdminUser');
+const AdminProfileModel = require('./AdminProfile');
 const CourseModel = require('./Course');
 const CourseDetailModel = require('./CourseDetail');
 const CourseSeatModel = require('./CourseSeats');
@@ -15,6 +16,7 @@ const AdmissionRecordModel = require('./admissionRecord');
 // Initialize models
 const User = UserModel(sequelize, DataTypes);
 const AdminUser = AdminUserModel(sequelize, DataTypes);
+const AdminProfile = AdminProfileModel(sequelize, DataTypes);
 const Course = CourseModel(sequelize, DataTypes);
 const CourseDetail = CourseDetailModel(sequelize, DataTypes);
 const CourseSeat = CourseSeatModel(sequelize, DataTypes);
@@ -30,6 +32,17 @@ User.hasOne(PersonalInfo, {
   foreignKey: 'student_id',
   sourceKey: 'student_id',
   as: 'personalInfo'
+});
+
+
+AdminUser.hasOne(AdminProfile, { 
+  foreignKey: 'admin_id', 
+  as: 'adminProfile'   // ✅ match controller
+});
+
+AdminProfile.belongsTo(AdminUser, { 
+  foreignKey: 'admin_id', 
+  as: 'admin' 
 });
 
 PersonalInfo.belongsTo(User, {
@@ -97,6 +110,7 @@ module.exports = {
   sequelize,
   User,
   AdminUser,
+  AdminProfile,
   Course,
   CourseDetail,
   CourseSeat,

@@ -1,67 +1,161 @@
-import React, { useState } from 'react';
-import { User, Mail, Phone, MapPin, Upload, Save, Camera, FileText, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Mail, Phone, MapPin, Upload, Save, Camera, FileText, CheckCircle, Calendar, Users } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
-interface ProfilePageProps {
-  user: any;
-  onNavigate: (page: string) => void;
+// Core profile data interface
+interface ProfileData {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone_number: string;
+  date_of_birth: string;
+  gender: string;
+  address: string;
 }
 
-const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) => {
+interface UserData {
+  id: number;
+  email: string;
+  phone_no: string;
+  student_id?: string;
+  profileData: ProfileData;
+}
+
+interface ProfilePageProps {
+  user?: any; 
+  isAdmin?: boolean;
+  onNavigate?: (page: string) => void;
+}
+
+const ProfilePage: React.FC<ProfilePageProps> = ({ user, isAdmin = false, onNavigate }) => {
+  const { 
+    profileData: authProfileData, 
+    profileLoading, 
+    profileError,
+    updateProfile,
+    updateProfileField,
+    clearProfileError,
+    refreshProfile
+  } = useAuth();
+
   const [activeTab, setActiveTab] = useState('personal');
-  const [profileData, setProfileData] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: user?.email || 'john@example.com',
-    phone: '+1 234-567-8901',
-    address: '123 Main Street, City, State 12345',
-    dateOfBirth: '1995-06-15',
-    profilePicture: null
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
+
+  const [profileData, setProfileData] = useState<ProfileData>({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone_number: '',
+    date_of_birth: '',
+    gender: '',
+    address: ''
   });
 
-  const [documents, setDocuments] = useState([
-    {
-      id: 1,
-      name: '10th Grade Certificate',
-      type: 'academic',
-      status: 'uploaded',
-      uploadDate: '2024-01-15',
-      file: null
-    },
-    {
-      id: 2,
-      name: '12th Grade Certificate',
-      type: 'academic',
-      status: 'uploaded',
-      uploadDate: '2024-01-15',
-      file: null
-    },
-    {
-      id: 3,
-      name: 'ID Proof (Aadhar/Passport)',
-      type: 'identity',
-      status: 'pending',
-      uploadDate: null,
-      file: null
-    },
-    {
-      id: 4,
-      name: 'Passport Size Photo',
-      type: 'photo',
-      status: 'uploaded',
-      uploadDate: '2024-01-15',
-      file: null
-    },
-    {
-      id: 5,
-      name: 'Income Certificate (Optional)',
-      type: 'financial',
-      status: 'pending',
-      uploadDate: null,
-      file: null
-    }
+  type DocumentItem = {
+    id: number;
+    name: string;
+    type: string;
+    status: string;
+    uploadDate: string | null;
+    file: File | null;
+  };
+
+  const [documents, setDocuments] = useState<DocumentItem[]>([
+    { id: 1, name: '10th Grade Certificate', type: 'academic', status: 'uploaded', uploadDate: '2024-01-15', file: null },
+    { id: 2, name: '12th Grade Certificate', type: 'academic', status: 'uploaded', uploadDate: '2024-01-15', file: null },
+    { id: 3, name: 'ID Proof (Aadhar/Passport)', type: 'identity', status: 'pending', uploadDate: null, file: null },
+    { id: 4, name: 'Passport Size Photo', type: 'photo', status: 'uploaded', uploadDate: '2024-01-15', file: null },
+    { id: 5, name: 'Income Certificate (Optional)', type: 'financial', status: 'pending', uploadDate: null, file: null }
   ]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  // Load initial profile data from multiple sources
+    // Load initial profile data from multiple sources
+useEffect(() => {
+  console.log('🔄 ProfilePage: Data sources changed');
+  console.log('AuthContext profileData:', authProfileData);
+  console.log('Legacy user prop:', user);
+  
+  let finalProfileData = {
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone_number: '',
+    date_of_birth: '',
+    gender: '',
+    address: ''
+  };
+
+  // Priority 1: Use AuthContext profile data
+  if (authProfileData) {
+    console.log('✅ Using AuthContext profile data');
+    
+    // Extract username from email if first_name is empty
+    const userName = authProfileData.email?.split('@')[0] || 'User';
+    
+    finalProfileData = {
+      first_name: authProfileData.first_name || userName,
+      last_name: authProfileData.last_name || '',
+      email: authProfileData.email || '',
+      phone_number: authProfileData.phone_number || authProfileData.phone_number || '',
+      date_of_birth: authProfileData.date_of_birth || '',
+      gender: authProfileData.gender || '',
+      address: authProfileData.address || ''
+    };
+  }
+  // Priority 2: Use legacy user prop data
+  else if (user && user.profileData) {
+    console.log('✅ Using legacy user.profileData');
+    finalProfileData = {
+      first_name: user.profileData.first_name || '',
+      last_name: user.profileData.last_name || '',
+      email: user.profileData.email || user.email || '',
+      phone_number: user.profileData.phone_number || user.phone_no || '',
+      date_of_birth: user.profileData.date_of_birth || '',
+      gender: user.profileData.gender || '',
+      address: user.profileData.address || ''
+    };
+  }
+  // Priority 3: Use basic user data
+  else if (user) {
+    console.log('✅ Using basic user data');
+    const userName = user.name || user.email?.split('@')[0] || 'User';
+    
+    finalProfileData = {
+      first_name: userName,
+      last_name: '',
+      email: user.email || '',
+      phone_number: user.phone_no || '',
+      date_of_birth: '',
+      gender: '',
+      address: ''
+    };
+  } else {
+    console.log('❌ No user data available');
+  }
+
+  console.log('🎯 Final profile data to display:', finalProfileData);
+  setProfileData(finalProfileData);
+}, [authProfileData, user]);
+
+  // Clear messages after 3 seconds
+  useEffect(() => {
+    if (message.text) {
+      const timer = setTimeout(() => {
+        setMessage({ type: '', text: '' });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message.text]);
+
+  // Sync AuthContext errors with local message state
+  useEffect(() => {
+    if (profileError) {
+      setMessage({ type: 'error', text: profileError });
+    }
+  }, [profileError]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setProfileData(prev => ({ ...prev, [name]: value }));
   };
@@ -74,10 +168,51 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) => {
     ));
   };
 
-  const saveProfile = () => {
-    // Save profile data
-    localStorage.setItem('profileData', JSON.stringify(profileData));
-    alert('Profile saved successfully!');
+  const saveProfile = async () => {
+  try {
+    setSaveLoading(true);
+    clearProfileError();
+    
+    // Prepare data for update - use destructuring instead of delete
+    const { email, phone_number, ...profileDataToSave } = profileData;
+    
+    // For non-admins, use the filtered data
+    const dataToSave = isAdmin ? profileData : profileDataToSave;
+
+    // Use AuthContext updateProfile method
+    const result = await updateProfile(dataToSave);
+    
+    if (result.success) {
+      setMessage({ type: 'success', text: 'Profile saved successfully!' });
+      // Refresh to get latest data
+      await refreshProfile();
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to save profile' });
+    }
+  } catch (error) {
+    console.error('Save profile error:', error);
+    setMessage({ type: 'error', text: 'Error saving profile' });
+  } finally {
+    setSaveLoading(false);
+  }
+};
+
+  // NEW: Single field update using AuthContext
+  const handleSingleFieldUpdate = async (field: keyof ProfileData, value: string) => {
+    try {
+      clearProfileError();
+      const result = await updateProfileField(field, value);
+      
+      if (result.success) {
+        setMessage({ type: 'success', text: `${field.charAt(0).toUpperCase() + field.slice(1)} updated successfully!` });
+        await refreshProfile();
+      } else {
+        setMessage({ type: 'error', text: result.error || `Failed to update ${field}` });
+      }
+    } catch (error) {
+      console.error('Update field error:', error);
+      setMessage({ type: 'error', text: `Error updating ${field}` });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -91,121 +226,172 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) => {
 
   const renderPersonalInfo = () => (
     <div className="space-y-6">
+      {/* Message Display */}
+      {message.text && (
+        <div className={`p-4 rounded-lg border ${
+          message.type === 'success' 
+            ? 'bg-green-50 border-green-200 text-green-800' 
+            : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          {message.text}
+        </div>
+      )}
+
+      {/* Profile Header */}
       <div className="flex items-center space-x-6 mb-8">
         <div className="relative">
           <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
-            {profileData.profilePicture ? (
-              <img 
-                src={URL.createObjectURL(profileData.profilePicture)} 
-                alt="Profile" 
-                className="w-24 h-24 rounded-full object-cover"
-              />
-            ) : (
-              <User className="w-12 h-12 text-gray-400" />
-            )}
+            <User className="w-12 h-12 text-gray-400" />
           </div>
           <button className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-700">
             <Camera className="w-4 h-4" />
           </button>
         </div>
         <div>
-          <h3 className="text-xl font-semibold text-gray-900">{profileData.firstName} {profileData.lastName}</h3>
+          <h3 className="text-xl font-semibold text-gray-900">
+            {profileData.first_name || profileData.last_name 
+              ? `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim() 
+              : 'Complete your profile'
+            }
+          </h3>
           <p className="text-gray-600">{profileData.email}</p>
-          <p className="text-sm text-gray-500">Student ID: #STU2024001</p>
+          {user?.student_id && <p className="text-sm text-gray-500">Student ID: {user.student_id}</p>}
+          {isAdmin && <p className="text-sm text-blue-600">Administrator</p>}
         </div>
       </div>
 
+      {/* Profile Form */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* First Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
           <div className="relative">
             <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              name="firstName"
-              value={profileData.firstName}
+            <input 
+              type="text" 
+              name="first_name" 
+              value={profileData.first_name} 
               onChange={handleInputChange}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+              placeholder="Enter your first name" 
             />
           </div>
         </div>
 
+        {/* Last Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
           <div className="relative">
             <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              name="lastName"
-              value={profileData.lastName}
+            <input 
+              type="text" 
+              name="last_name" 
+              value={profileData.last_name} 
               onChange={handleInputChange}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+              placeholder="Enter your last name" 
             />
           </div>
         </div>
 
+        {/* Email */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
           <div className="relative">
             <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-            <input
-              type="email"
-              name="email"
-              value={profileData.email}
-              onChange={handleInputChange}
-              disabled
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+            <input 
+              type="email" 
+              name="email" 
+              value={profileData.email} 
+              disabled={!isAdmin}
+              className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg ${
+                isAdmin ? 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'bg-gray-50 text-gray-600 cursor-not-allowed'
+              }`} 
             />
           </div>
+          {!isAdmin && <p className="text-xs text-gray-500 mt-1">Email cannot be changed from profile</p>}
         </div>
 
+        {/* Phone */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
           <div className="relative">
             <Phone className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-            <input
-              type="tel"
-              name="phone"
-              value={profileData.phone}
+            <input 
+              type="tel" 
+              name="phone_number" 
+              value={profileData.phone_number} 
+              onChange={isAdmin ? handleInputChange : undefined}
+              disabled={!isAdmin}
+              className={`w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg ${
+                isAdmin ? 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'bg-gray-50 text-gray-600 cursor-not-allowed'
+              }`} 
+              placeholder="Enter your phone number" 
+            />
+          </div>
+          {!isAdmin && <p className="text-xs text-gray-500 mt-1">Phone number cannot be changed from profile</p>}
+        </div>
+
+        {/* Date of Birth */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+            <input 
+              type="date" 
+              name="date_of_birth" 
+              value={profileData.date_of_birth} 
               onChange={handleInputChange}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
             />
           </div>
         </div>
 
+        {/* Gender */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
-          <input
-            type="date"
-            name="dateOfBirth"
-            value={profileData.dateOfBirth}
-            onChange={handleInputChange}
-            className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+          <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+          <div className="relative">
+            <Users className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+            <select 
+              name="gender" 
+              value={profileData.gender} 
+              onChange={handleInputChange}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
         </div>
       </div>
 
+      {/* Address */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
         <div className="relative">
           <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-          <textarea
-            name="address"
-            value={profileData.address}
+          <textarea 
+            name="address" 
+            value={profileData.address} 
             onChange={handleInputChange}
             rows={3}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+            placeholder="Enter your complete address" 
           />
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <button
-          onClick={saveProfile}
-          className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+      {/* Save Button */}
+      <div className="flex justify-end pt-6 border-t">
+        <button 
+          onClick={saveProfile} 
+          disabled={saveLoading || profileLoading}
+          className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <Save className="h-4 w-4" />
-          <span>Save Changes</span>
+          <span>{saveLoading ? 'Saving...' : 'Save Changes'}</span>
         </button>
       </div>
     </div>
@@ -223,12 +409,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) => {
           <div key={document.id} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center space-x-3">
-                <div className={`p-2 rounded-full ${
-                  document.status === 'uploaded' ? 'bg-green-100' : 'bg-yellow-100'
-                }`}>
-                  <FileText className={`h-5 w-5 ${
-                    document.status === 'uploaded' ? 'text-green-600' : 'text-yellow-600'
-                  }`} />
+                <div className={`p-2 rounded-full ${document.status === 'uploaded' ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                  <FileText className={`h-5 w-5 ${document.status === 'uploaded' ? 'text-green-600' : 'text-yellow-600'}`} />
                 </div>
                 <div>
                   <h4 className="font-medium text-gray-900">{document.name}</h4>
@@ -247,37 +429,26 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) => {
                   <span>Uploaded on {document.uploadDate}</span>
                 </div>
                 <div className="flex space-x-2">
-                  <button className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
-                    View Document
-                  </button>
-                  <button className="flex-1 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                    Replace
-                  </button>
+                  <button className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">View Document</button>
+                  <button onClick={() => document.file && handleFileUpload(document.id, document.file)} className="flex-1 px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">Replace</button>
                 </div>
               </div>
             ) : (
               <div className="space-y-3">
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
                   <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileUpload(document.id, file);
-                    }}
-                    className="hidden"
-                    id={`file-${document.id}`}
+                  <input 
+                    type="file" 
+                    accept=".pdf,.jpg,.jpeg,.png" 
+                    onChange={(e) => { 
+                      const file = e.target.files?.[0]; 
+                      if (file) handleFileUpload(document.id, file); 
+                    }} 
+                    className="hidden" 
+                    id={`file-${document.id}`} 
                   />
-                  <label
-                    htmlFor={`file-${document.id}`}
-                    className="cursor-pointer text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    Choose File
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1">
-                    PDF, JPG, PNG (Max 5MB)
-                  </p>
+                  <label htmlFor={`file-${document.id}`} className="cursor-pointer text-blue-600 hover:text-blue-800 font-medium">Choose File</label>
+                  <p className="text-xs text-gray-500 mt-1">PDF, JPG, PNG (Max 5MB)</p>
                 </div>
                 <p className="text-sm text-gray-500">
                   {document.type === 'academic' && 'Upload your academic certificates'}
@@ -304,39 +475,43 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) => {
     </div>
   );
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'personal':
-        return renderPersonalInfo();
-      case 'documents':
-        return renderDocuments();
-      default:
-        return renderPersonalInfo();
-    }
-  };
+  const renderTabContent = () => activeTab === 'documents' ? renderDocuments() : renderPersonalInfo();
+
+  if (profileLoading && !authProfileData) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-gray-600">Loading profile...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Profile Management</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{isAdmin ? 'Admin Profile Management' : 'Profile Management'}</h1>
           <p className="text-gray-600 mt-2">Manage your personal information and documents</p>
         </div>
 
-        {/* Navigation Tabs */}
         <div className="border-b border-gray-200 mb-8">
           <nav className="-mb-px flex space-x-8">
             {[
-              { id: 'personal', label: 'Personal Info', icon: User },
+              { id: 'personal', label: 'Personal Info', icon: User }, 
               { id: 'documents', label: 'Documents', icon: FileText }
-            ].map((tab) => (
-              <button
-                key={tab.id}
+            ].map(tab => (
+              <button 
+                key={tab.id} 
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
+                  activeTab === tab.id 
+                    ? 'border-blue-500 text-blue-600' 
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -347,7 +522,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, onNavigate }) => {
           </nav>
         </div>
 
-        {/* Content */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           {renderTabContent()}
         </div>
