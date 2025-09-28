@@ -1,224 +1,298 @@
-// src/contexts/ApplicationContext.tsx
-import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
-import { ApplicationFormData, ApplicationState, SubjectMark } from '../../src/types/admissionFormTypes';
-import { apiService } from '../../src/services/admissionFormService';
-import { applicationReducer } from '../reducers/applicationReducer';
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { ApplicationFormData, SubjectMark } from '../types/applicationForm';
+import { admissionService } from '../services/admissionFormService';
 
-interface ApplicationContextType extends ApplicationState {
-  setCurrentStep: (step: number) => void;
-  updateFormData: (data: Partial<ApplicationFormData>) => void;
+// Define the context type
+export interface ApplicationContextType {
+  currentStep: number;
+  setCurrentStep: React.Dispatch<React.SetStateAction<number>>;
+  formData: ApplicationFormData;
+  isLoading: boolean;
+  error: string | null;
+  submissionStatus: string;
+  updateFormData: (updates: Partial<ApplicationFormData>) => void;
   addSubjectMark: () => void;
   updateSubjectMark: (id: number, field: 'subject' | 'mark', value: string) => void;
   removeSubjectMark: (id: number) => void;
   saveDraft: () => void;
   loadDraft: () => void;
-  submitApplication: () => Promise<boolean>;
-  resetApplication: () => void;
+  submitApplication: () => Promise<any>;
 }
 
+// Provide default value
 const ApplicationContext = createContext<ApplicationContextType | undefined>(undefined);
-
-const initialState: ApplicationState = {
-  currentStep: 1,
-  formData: {
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    aadhaarNumber: '',
-    bloodGroup: '',
-    dateOfBirth: '',
-    gender: '',
-    address: '',
-    fatherName: '',
-    fatherOccupation: '',
-    motherName: '',
-    motherOccupation: '',
-    annualIncome: '',
-    community: '',
-    caste: '',
-    religion: '',
-    nationality: 'Indian',
-    schoolName: '',
-    examRegisterNumber: '',
-    emisNo: '',
-    subjectMarks: [{ id: 1, subject: '', mark: '' }],
-    totalMarks: '',
-    markPercentage: '',
-    cutoff: '',
-    monthYearPassing: '',
-    courseType: '',
-    courseName: '',
-    courseMode: '',
-    physicallyChallenged: '',
-    exServiceman: '',
-    activities: '',
-    photo: null,
-    aadhaarCard: null,
-    transferCertificate: null,
-  },
-  isLoading: false,
-  error: null,
-  submissionStatus: 'idle',
-};
 
 interface ApplicationProviderProps {
   children: ReactNode;
-  token?: string;
+  user?: any; 
+  token?: String;
 }
 
-export const ApplicationProvider: React.FC<ApplicationProviderProps> = ({ 
-  children, 
-  token 
-}) => {
-  const [state, dispatch] = useReducer(applicationReducer, initialState);
+export const useApplication = () => {
+  const context = useContext(ApplicationContext);
+  if (!context) {
+    throw new Error('useApplication must be used within ApplicationProvider');
+  }
+  return context;
+};
 
-  // Set token when provider mounts or token changes
-  React.useEffect(() => {
-  const t = token ?? localStorage.getItem('token');
-  if (t) apiService.setToken(t);
-}, [token]);
+export const ApplicationProvider: React.FC<ApplicationProviderProps> = ({ children, user }) => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submissionStatus, setSubmissionStatus] = useState('idle');
 
-  // Memoize all functions to prevent unnecessary re-renders
-  const setCurrentStep = useCallback((step: number) => {
-    dispatch({ type: 'SET_CURRENT_STEP', payload: step });
-  }, []);
+  // Initialize form data with proper types - USING SNAKE_CASE FOR CONSISTENCY
+  const [formData, setFormData] = useState<ApplicationFormData>({
+    // Personal Information (snake_case to match database)
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone_number: '',
+    aadhaar_number: '',
+    blood_group: '',
+    date_of_birth: '',
+    gender: '',
+    address: '',
+    father_name: '',
+    father_occupation: '',
+    mother_name: '',
+    mother_occupation: '',
+    annual_income: '',
+    community: '',
+    caste: '',
+    religion: '',
+    nationality: 'Indian', // Default value
+    
+    // Academic Information
+    school_name: '',
+    exam_register_number: '',
+    emis_no: '',
+    subjects: [{ id: 1, subject: '', mark: '' }], // Changed from subjectMarks to subjects
+    total_marks: '',
+    mark_percentage: '',
+    cutoff_marks: '',
+    month_year_passing: '',
+    
+    // Course Information (moved to academic section to match database)
+    course_type: '',
+    course_name: '',
+    course_mode: '',
+    
+    // Extra Information
+    physically_challenged: '',
+    ex_serviceman: '',
+    activities: '',
+    
+    // Files (consistent naming)
+    passport_photo: null,
+    aadhaar_card: null,
+    transfer_certificate: null
+  });
 
-  const updateFormData = useCallback((data: Partial<ApplicationFormData>) => {
-    dispatch({ type: 'UPDATE_FORM_DATA', payload: data });
-  }, []);
-
-  const addSubjectMark = useCallback(() => {
-    const newSubjectMark: SubjectMark = {
-      id: Date.now(),
-      subject: '',
-      mark: '',
+  // ✅ FIXED: Correct transformation to backend format
+  const transformToBackendFormat = useCallback((frontendData: ApplicationFormData) => {
+    return {
+      personalInfo: {
+        first_name: frontendData.first_name,
+        last_name: frontendData.last_name,
+        email: frontendData.email,
+        phone_number: frontendData.phone_number, // Fixed mapping
+        aadhaar_number: frontendData.aadhaar_number,
+        blood_group: frontendData.blood_group,
+        date_of_birth: frontendData.date_of_birth,
+        gender: frontendData.gender,
+        address: frontendData.address,
+        father_name: frontendData.father_name,
+        father_occupation: frontendData.father_occupation,
+        mother_name: frontendData.mother_name,
+        mother_occupation: frontendData.mother_occupation,
+        annual_income: frontendData.annual_income,
+        community: frontendData.community,
+        caste: frontendData.caste,
+        religion: frontendData.religion,
+        nationality: frontendData.nationality
+      },
+      academicInfo: {
+        school_name: frontendData.school_name,
+        exam_register_number: frontendData.exam_register_number,
+        emis_no: frontendData.emis_no,
+        subjects: frontendData.subjects, // ✅ Correct property name
+        total_marks: frontendData.total_marks,
+        mark_percentage: frontendData.mark_percentage,
+        cutoff_marks: frontendData.cutoff_marks, // ✅ Correct property name
+        month_year_passing: frontendData.month_year_passing,
+        course_type: frontendData.course_type, // ✅ Moved to correct section
+        course_name: frontendData.course_name,  // ✅ Moved to correct section
+        course_mode: frontendData.course_mode   // ✅ Moved to correct section
+      },
+      extraInfo: {
+        physically_challenged: frontendData.physically_challenged,
+        ex_serviceman: frontendData.ex_serviceman,
+        activities: frontendData.activities
+      }
     };
-    dispatch({ type: 'ADD_SUBJECT_MARK', payload: newSubjectMark });
+  }, []);
+
+  // ✅ FIXED: Correct transformation from backend format
+  const transformToFrontendFormat = useCallback((backendData: any): ApplicationFormData => {
+    const personalInfo = backendData.personalInfo || {};
+    const academicInfo = backendData.academicInfo || {};
+    const extraInfo = backendData.extraInfo || {};
+    
+    return {
+      // Personal Information
+      first_name: personalInfo.first_name || '',
+      last_name: personalInfo.last_name || '',
+      email: personalInfo.email || '',
+      phone_number: personalInfo.phone_number || '',
+      aadhaar_number: personalInfo.aadhaar_number || '',
+      blood_group: personalInfo.blood_group || '',
+      date_of_birth: personalInfo.date_of_birth || '',
+      gender: personalInfo.gender || '',
+      address: personalInfo.address || '',
+      father_name: personalInfo.father_name || '',
+      father_occupation: personalInfo.father_occupation || '',
+      mother_name: personalInfo.mother_name || '',
+      mother_occupation: personalInfo.mother_occupation || '',
+      annual_income: personalInfo.annual_income || '',
+      community: personalInfo.community || '',
+      caste: personalInfo.caste || '',
+      religion: personalInfo.religion || '',
+      nationality: personalInfo.nationality || 'Indian',
+      
+      // Academic Information
+      school_name: academicInfo.school_name || '',
+      exam_register_number: academicInfo.exam_register_number || '',
+      emis_no: academicInfo.emis_no || '',
+      subjects: academicInfo.subjects || [{ id: 1, subject: '', mark: '' }], // ✅ Correct property
+      total_marks: academicInfo.total_marks || '',
+      mark_percentage: academicInfo.mark_percentage || '',
+      cutoff_marks: academicInfo.cutoff_marks || '', // ✅ Correct property
+      month_year_passing: academicInfo.month_year_passing || '',
+      
+      // Course Information
+      course_type: academicInfo.course_type || '', // ✅ From correct section
+      course_name: academicInfo.course_name || '',  // ✅ From correct section
+      course_mode: academicInfo.course_mode || '',   // ✅ From correct section
+      
+      // Extra Information
+      physically_challenged: extraInfo.physically_challenged || '',
+      ex_serviceman: extraInfo.ex_serviceman || '',
+      activities: extraInfo.activities || '',
+      
+      // Files
+      passport_photo: null,
+      aadhaar_card: null,
+      transfer_certificate: null
+    };
+  }, []);
+
+  // Submit application to backend
+  const submitApplication = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      console.log('📝 Form Data before transformation:', formData);
+      
+      const backendData = transformToBackendFormat(formData);
+      console.log('🔄 Transformed Data for backend:', backendData);
+      
+      const response = await admissionService.submitApplication(backendData);
+      
+      console.log('✅ Submission successful:', response);
+      
+      setSubmissionStatus('submitted');
+      return response;
+    } catch (err) {
+      console.error('Error submitting application:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to submit application';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [formData, transformToBackendFormat]);
+
+  // Update form data
+  const updateFormData = useCallback((updates: Partial<ApplicationFormData>) => {
+    setFormData(prev => ({
+      ...prev,
+      ...updates
+    }));
+  }, []);
+
+  // ✅ FIXED: Subject marks operations - using correct property name
+  const addSubjectMark = useCallback(() => {
+    setFormData(prev => ({
+      ...prev,
+      subjects: [ // ✅ Changed from subjectMarks to subjects
+        ...prev.subjects,
+        { id: Date.now(), subject: '', mark: '' }
+      ]
+    }));
   }, []);
 
   const updateSubjectMark = useCallback((id: number, field: 'subject' | 'mark', value: string) => {
-    dispatch({ 
-      type: 'UPDATE_SUBJECT_MARK', 
-      payload: { id, field, value } 
-    });
+    setFormData(prev => ({
+      ...prev,
+      subjects: prev.subjects.map(item => // ✅ Changed from subjectMarks to subjects
+        item.id === id ? { ...item, [field]: value } : item
+      )
+    }));
   }, []);
 
   const removeSubjectMark = useCallback((id: number) => {
-    dispatch({ type: 'REMOVE_SUBJECT_MARK', payload: id });
+    setFormData(prev => ({
+      ...prev,
+      subjects: prev.subjects.filter(item => item.id !== id) // ✅ Changed from subjectMarks to subjects
+    }));
   }, []);
 
+  // Save draft to localStorage
   const saveDraft = useCallback(() => {
-    dispatch({ type: 'SAVE_DRAFT' });
-  }, []);
+    try {
+      localStorage.setItem('admissionDraft', JSON.stringify(formData));
+    } catch (err) {
+      console.error('Error saving draft:', err);
+    }
+  }, [formData]);
 
+  // Load draft from localStorage
   const loadDraft = useCallback(() => {
-    dispatch({ type: 'LOAD_DRAFT' });
-  }, []);
-
- // Update the submitApplication function in ApplicationContext.tsx
-const submitApplication = useCallback(async (): Promise<boolean> => {
-  dispatch({ type: 'SUBMIT_APPLICATION_START' });
-  
-  try {
-    // Validate required fields before submission
-    if (!state.formData.aadhaarNumber || !state.formData.email) {
-      throw new Error('Required fields are missing');
+    try {
+      const draft = localStorage.getItem('admissionDraft');
+      if (draft) {
+        const parsedDraft = JSON.parse(draft);
+        setFormData(prev => ({
+          ...prev,
+          ...parsedDraft,
+          // Ensure files are null when loading from localStorage
+          passport_photo: null,
+          aadhaar_card: null,
+          transfer_certificate: null
+        }));
+      }
+    } catch (err) {
+      console.error('Error loading draft:', err);
     }
-
-    // Transform form data to match backend models
-    const personalInfoData = {
-      first_name: state.formData.firstName,
-      last_name: state.formData.lastName,
-      email: state.formData.email,
-      phone_number: state.formData.phone,
-      aadhaar_number: state.formData.aadhaarNumber,
-      blood_group: state.formData.bloodGroup,
-      date_of_birth: state.formData.dateOfBirth,
-      gender: state.formData.gender,
-      address: state.formData.address,
-      father_name: state.formData.fatherName,
-      father_occupation: state.formData.fatherOccupation,
-      mother_name: state.formData.motherName,
-      mother_occupation: state.formData.motherOccupation,
-      annual_income: state.formData.annualIncome ? parseFloat(state.formData.annualIncome) : undefined,
-      community: state.formData.community,
-      caste: state.formData.caste,
-      religion: state.formData.religion,
-      nationality: state.formData.nationality,
-    };
-
-    const academicInfoData = {
-      school_name: state.formData.schoolName,
-      exam_register_number: state.formData.examRegisterNumber,
-      emis_no: state.formData.emisNo,
-      subjects: state.formData.subjectMarks,
-      total_marks: state.formData.totalMarks ? parseInt(state.formData.totalMarks) : undefined,
-      mark_percentage: state.formData.markPercentage ? parseFloat(state.formData.markPercentage) : undefined,
-      cutoff_marks: state.formData.cutoff ? parseFloat(state.formData.cutoff) : undefined,
-      month_year_passing: state.formData.monthYearPassing,
-      course_type: state.formData.courseType,
-      course_name: state.formData.courseName,
-      course_mode: state.formData.courseMode,
-    };
-
-    const extraInfoData = {
-      physically_challenged: state.formData.physicallyChallenged,
-      ex_serviceman: state.formData.exServiceman,
-      activities: state.formData.activities,
-    };
-
-    // Save data to backend in sequence with error handling
-    const personalResponse = await apiService.savePersonalInfo(personalInfoData);
-    if (!personalResponse.success) {
-      throw new Error(personalResponse.error || 'Failed to save personal information');
-    }
-
-    const academicResponse = await apiService.saveAcademicInfo(academicInfoData);
-    if (!academicResponse.success) {
-      throw new Error(academicResponse.error || 'Failed to save academic information');
-    }
-
-    const extraResponse = await apiService.saveExtraInfo(extraInfoData);
-    if (!extraResponse.success) {
-      throw new Error(extraResponse.error || 'Failed to save extra information');
-    }
-
-    const admissionResponse = await apiService.submitAdmissionApplication();
-
-    if (!admissionResponse.success) {
-      throw new Error(admissionResponse.error || 'Failed to submit admission application');
-    }
-
-     dispatch({ type: 'SUBMIT_APPLICATION_SUCCESS' });
-    return true;
-
-  } catch (error) {
-    const errorMessage = error instanceof Error 
-      ? error.message 
-      : 'Submission failed due to an unexpected error';
-    
-    dispatch({ type: 'SUBMIT_APPLICATION_ERROR', payload: errorMessage });
-    console.error('Application submission error:', error);
-    return false;
-  }
-}, [state.formData]);
-
-  const resetApplication = useCallback(() => {
-    dispatch({ type: 'RESET_APPLICATION' });
   }, []);
 
   const value: ApplicationContextType = {
-    ...state,
+    currentStep,
     setCurrentStep,
+    formData,
+    isLoading,
+    error,
+    submissionStatus,
     updateFormData,
     addSubjectMark,
     updateSubjectMark,
     removeSubjectMark,
     saveDraft,
     loadDraft,
-    submitApplication,
-    resetApplication,
+    submitApplication
   };
 
   return (
@@ -226,12 +300,4 @@ const submitApplication = useCallback(async (): Promise<boolean> => {
       {children}
     </ApplicationContext.Provider>
   );
-};
-
-export const useApplication = (): ApplicationContextType => {
-  const context = useContext(ApplicationContext);
-  if (context === undefined) {
-    throw new Error('useApplication must be used within an ApplicationProvider');
-  }
-  return context;
 };

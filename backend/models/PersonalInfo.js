@@ -15,7 +15,7 @@ module.exports = (sequelize, DataTypes) => {
     email: {
       type: DataTypes.STRING(255),
       allowNull: false,
-      unique: true
+     
     },
     phone_number: {
       type: DataTypes.STRING(20),
@@ -24,7 +24,7 @@ module.exports = (sequelize, DataTypes) => {
     aadhaar_number: {
       type: DataTypes.STRING(20),
       allowNull: false,
-      unique: true
+ 
     },
     blood_group: DataTypes.STRING(5),
     date_of_birth: DataTypes.DATE,

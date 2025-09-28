@@ -16,7 +16,8 @@ import {
   AlertCircle,
   CheckCircle
 } from 'lucide-react';
-import { useApplication } from '../../src/contexts/ApplicationContext'; 
+import { useApplication } from '../contexts/ApplicationContext';
+import { SubjectMark } from '../types/applicationForm';
 
 interface ApplicationFormProps {
   user: any;
@@ -28,7 +29,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
     currentStep,
     formData,
     isLoading,
-    error,
+    error: contextError,
     submissionStatus,
     setCurrentStep,
     updateFormData,
@@ -37,7 +38,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
     removeSubjectMark,
     saveDraft,
     submitApplication,
-    loadDraft
+    loadDraft,
   } = useApplication();
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -64,12 +65,11 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
 
   // Load draft and user email on component mount
   useEffect(() => {
-    // Load draft only once when component mounts
     if (!isInitialized) {
       loadDraft();
       setIsInitialized(true);
     }
-  }, [isInitialized, loadDraft]); // loadDraft is now memoized
+  }, [isInitialized, loadDraft]);
 
   // Separate useEffect for user email initialization
   useEffect(() => {
@@ -119,7 +119,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
-    const file = e.target.files?.[0];
+    const file = e.target.files?.[0] || null;
     updateFormData({ [fieldName]: file });
   };
 
@@ -128,22 +128,26 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
   };
 
   const calculateMarks = () => {
-    const total = formData.subjectMarks.reduce((sum, item) => {
+    // ✅ FIXED: Changed from subjectMarks to subjects to match context
+    const total = formData.subjects.reduce((sum: number, item: SubjectMark) => {
       const mark = parseFloat(item.mark) || 0;
       return sum + mark;
     }, 0);
     
-    const percentage = formData.subjectMarks.length > 0 ? 
-      (total / (formData.subjectMarks.length * 100)) * 100 : 0;
+    // ✅ FIXED: Changed from subjectMarks to subjects
+    const percentage = formData.subjects.length > 0 ? 
+      (total / (formData.subjects.length * 100)) * 100 : 0;
     
     let cutoff = 0;
-    const math = formData.subjectMarks.find(sm => 
+    
+    // ✅ FIXED: Changed from subjectMarks to subjects
+    const math = formData.subjects.find((sm: SubjectMark) => 
       sm.subject.toLowerCase().includes('maths') || sm.subject.toLowerCase().includes('mathematics')
     );
-    const physics = formData.subjectMarks.find(sm => 
+    const physics = formData.subjects.find((sm: SubjectMark) => 
       sm.subject.toLowerCase().includes('physics')
     );
-    const chemistry = formData.subjectMarks.find(sm => 
+    const chemistry = formData.subjects.find((sm: SubjectMark) => 
       sm.subject.toLowerCase().includes('chemistry')
     );
 
@@ -155,9 +159,10 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
     }
 
     updateFormData({
-      totalMarks: total.toString(),
-      markPercentage: percentage.toFixed(2),
-      cutoff: cutoff ? cutoff.toFixed(2) : ''
+      // ✅ FIXED: Changed to snake_case to match context
+      total_marks: total.toString(),
+      mark_percentage: percentage.toFixed(2),
+      cutoff_marks: cutoff ? cutoff.toFixed(2) : ''
     });
   };
 
@@ -165,30 +170,34 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
     const newErrors: Record<string, string> = {};
 
     if (step === 1) {
-      if (!formData.firstName) newErrors.firstName = 'First name is required';
-      if (!formData.lastName) newErrors.lastName = 'Last name is required';
-      if (!formData.phone) newErrors.phone = 'Phone number is required';
-      if (!formData.aadhaarNumber) newErrors.aadhaarNumber = 'Aadhaar number is required';
-      if (formData.aadhaarNumber && !/^\d{12}$/.test(formData.aadhaarNumber)) {
-        newErrors.aadhaarNumber = 'Aadhaar number must be 12 digits';
+      // ✅ FIXED: Changed to snake_case field names
+      if (!formData.first_name) newErrors.first_name = 'First name is required';
+      if (!formData.last_name) newErrors.last_name = 'Last name is required';
+      if (!formData.phone_number) newErrors.phone_number = 'Phone number is required';
+      if (!formData.aadhaar_number) newErrors.aadhaar_number = 'Aadhaar number is required';
+      if (formData.aadhaar_number && !/^\d{12}$/.test(formData.aadhaar_number)) {
+        newErrors.aadhaar_number = 'Aadhaar number must be 12 digits';
       }
-      if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+      if (!formData.date_of_birth) newErrors.date_of_birth = 'Date of birth is required';
       if (!formData.gender) newErrors.gender = 'Gender is required';
       if (!formData.address) newErrors.address = 'Address is required';
-      if (!formData.fatherName) newErrors.fatherName = "Father's name is required";
+      if (!formData.father_name) newErrors.father_name = "Father's name is required";
     }
 
     if (step === 2) {
-      if (!formData.schoolName) newErrors.schoolName = 'School name is required';
-      if (!formData.examRegisterNumber) newErrors.examRegisterNumber = 'Exam register number is required';
-      if (formData.subjectMarks.some(sm => !sm.subject || !sm.mark)) {
+      // ✅ FIXED: Changed to snake_case field names
+      if (!formData.school_name) newErrors.school_name = 'School name is required';
+      if (!formData.exam_register_number) newErrors.exam_register_number = 'Exam register number is required';
+      // ✅ FIXED: Changed from subjectMarks to subjects
+      if (formData.subjects.some((sm: SubjectMark) => !sm.subject || !sm.mark)) {
         newErrors.subjects = 'All subject fields must be filled';
       }
     }
 
     if (step === 3) {
-      if (!formData.courseType) newErrors.courseType = 'Course type is required';
-      if (!formData.courseName) newErrors.courseName = 'Course name is required';
+      // ✅ FIXED: Changed to snake_case field names
+      if (!formData.course_type) newErrors.course_type = 'Course type is required';
+      if (!formData.course_name) newErrors.course_name = 'Course name is required';
     }
 
     if (step === 4) {
@@ -217,9 +226,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
     setTimeout(() => setIsDraftSaved(false), 3000);
   };
 
-   const handleSubmitApplication = async () => {
-    console.log('Submit button clicked'); // Debug log
-    
+  const handleSubmitApplication = async () => {
     if (!validateStep(4)) {
       setSubmitStatus('error');
       setSubmitMessage('Please fix validation errors before submitting');
@@ -236,46 +243,34 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
     setSubmitMessage('Submitting your application...');
 
     try {
-      calculateMarks(); // Ensure marks are calculated
+      calculateMarks();
       
-      console.log('Calling submitApplication from context...'); // Debug log
-      const success = await submitApplication();
-      console.log('Submission result:', success); // Debug log
+      const response = await submitApplication();
       
-      if (success) {
-        setSubmitStatus('success');
-        setSubmitMessage('Application submitted successfully!');
-        
-        // Update user status
-        const updatedUser = { 
-          ...user, 
-          applicationStatus: 'submitted',
-          applicationDate: new Date().toISOString(),
-          applicationId: formData.aadhaarNumber // Using Aadhaar as application ID
-        };
-        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-        
-        console.log('Success! Redirecting in 3 seconds...'); // Debug log
-        // Show success message for 3 seconds then redirect
-        setTimeout(() => {
-          console.log('Redirecting to student-dashboard'); // Debug log
-          onNavigate('student-dashboard');
-        }, 3000);
-        
-      } else {
-        throw new Error(error || 'Submission failed without specific error');
-      }
+      setSubmitStatus('success');
+      setSubmitMessage('Application submitted successfully!');
+      
+      const updatedUser = { 
+        ...user, 
+        applicationStatus: 'submitted',
+        applicationDate: new Date().toISOString(),
+        applicationId: response.admission_id,
+        student_id: response.student_id
+      };
+      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+      
+      localStorage.removeItem('admissionDraft');
+      
+      setTimeout(() => {
+        onNavigate('student-dashboard');
+      }, 3000);
       
     } catch (error) {
-      console.error('Submission error:', error); // Debug log
+      console.error('Submission error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Submission failed. Please try again.';
       setSubmitStatus('error');
-      setSubmitMessage(
-        error instanceof Error 
-          ? `Submission failed: ${error.message}` 
-          : 'Submission failed. Please try again.'
-      );
+      setSubmitMessage(errorMessage);
       
-      // Auto-hide error after 5 seconds
       setTimeout(() => {
         setSubmitStatus('idle');
         setSubmitMessage('');
@@ -284,7 +279,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
   };
 
   const renderPersonalInfo = () => (
-    <div className="space-y-6">
+      <div className="space-y-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -292,28 +287,28 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
           <input
             type="text"
-            name="firstName"
-            value={formData.firstName}
+            name="first_name" // ✅ FIXED: Changed to snake_case
+            value={formData.first_name}
             onChange={handleInputChange}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.firstName ? 'border-red-300' : 'border-gray-300'
+              errors.first_name ? 'border-red-300' : 'border-gray-300'
             }`}
           />
-          {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>}
+          {errors.first_name && <p className="text-red-500 text-sm mt-1">{errors.first_name}</p>}
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
           <input
             type="text"
-            name="lastName"
-            value={formData.lastName}
+            name="last_name" // ✅ FIXED: Changed to snake_case
+            value={formData.last_name}
             onChange={handleInputChange}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.lastName ? 'border-red-300' : 'border-gray-300'
+              errors.last_name ? 'border-red-300' : 'border-gray-300'
             }`}
           />
-          {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>}
+          {errors.last_name && <p className="text-red-500 text-sm mt-1">{errors.last_name}</p>}
         </div>
       </div>
 
@@ -334,14 +329,14 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
           <input
             type="tel"
-            name="phone"
-            value={formData.phone}
+            name="phone_number" // ✅ FIXED: Changed to snake_case
+            value={formData.phone_number}
             onChange={handleInputChange}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.phone ? 'border-red-300' : 'border-gray-300'
+              errors.phone_number ? 'border-red-300' : 'border-gray-300'
             }`}
           />
-          {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+          {errors.phone_number && <p className="text-red-500 text-sm mt-1">{errors.phone_number}</p>}
         </div>
       </div>
 
@@ -350,23 +345,23 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">Aadhaar Number *</label>
           <input
             type="text"
-            name="aadhaarNumber"
-            value={formData.aadhaarNumber}
+            name="aadhaar_number" // ✅ FIXED: Changed to snake_case
+            value={formData.aadhaar_number}
             onChange={handleInputChange}
             maxLength={12}
             placeholder="12-digit Aadhaar number"
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.aadhaarNumber ? 'border-red-300' : 'border-gray-300'
+              errors.aadhaar_number ? 'border-red-300' : 'border-gray-300'
             }`}
           />
-          {errors.aadhaarNumber && <p className="text-red-500 text-sm mt-1">{errors.aadhaarNumber}</p>}
+          {errors.aadhaar_number && <p className="text-red-500 text-sm mt-1">{errors.aadhaar_number}</p>}
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Blood Group</label>
           <select
-            name="bloodGroup"
-            value={formData.bloodGroup}
+            name="blood_group" // ✅ FIXED: Changed to snake_case
+            value={formData.blood_group}
             onChange={handleInputChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
@@ -383,14 +378,14 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
           <input
             type="date"
-            name="dateOfBirth"
-            value={formData.dateOfBirth}
+            name="date_of_birth" // ✅ FIXED: Changed to snake_case
+            value={formData.date_of_birth}
             onChange={handleInputChange}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.dateOfBirth ? 'border-red-300' : 'border-gray-300'
+              errors.date_of_birth ? 'border-red-300' : 'border-gray-300'
             }`}
           />
-          {errors.dateOfBirth && <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth}</p>}
+          {errors.date_of_birth && <p className="text-red-500 text-sm mt-1">{errors.date_of_birth}</p>}
         </div>
 
         <div>
@@ -433,22 +428,22 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">Father's Name *</label>
           <input
             type="text"
-            name="fatherName"
-            value={formData.fatherName}
+            name="father_name" // ✅ FIXED: Changed to snake_case
+            value={formData.father_name}
             onChange={handleInputChange}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.fatherName ? 'border-red-300' : 'border-gray-300'
+              errors.father_name ? 'border-red-300' : 'border-gray-300'
             }`}
           />
-          {errors.fatherName && <p className="text-red-500 text-sm mt-1">{errors.fatherName}</p>}
+          {errors.father_name && <p className="text-red-500 text-sm mt-1">{errors.father_name}</p>}
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Father's Occupation</label>
           <input
             type="text"
-            name="fatherOccupation"
-            value={formData.fatherOccupation}
+            name="father_occupation" // ✅ FIXED: Changed to snake_case
+            value={formData.father_occupation}
             onChange={handleInputChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
@@ -460,8 +455,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Name</label>
           <input
             type="text"
-            name="motherName"
-            value={formData.motherName}
+            name="mother_name" // ✅ FIXED: Changed to snake_case
+            value={formData.mother_name}
             onChange={handleInputChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
@@ -471,8 +466,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Occupation</label>
           <input
             type="text"
-            name="motherOccupation"
-            value={formData.motherOccupation}
+            name="mother_occupation" // ✅ FIXED: Changed to snake_case
+            value={formData.mother_occupation}
             onChange={handleInputChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
@@ -484,8 +479,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">Annual Income (₹)</label>
           <input
             type="number"
-            name="annualIncome"
-            value={formData.annualIncome}
+            name="annual_income" // ✅ FIXED: Changed to snake_case
+            value={formData.annual_income}
             onChange={handleInputChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
@@ -544,28 +539,28 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">School Name *</label>
           <input
             type="text"
-            name="schoolName"
-            value={formData.schoolName}
+            name="school_name" // ✅ FIXED: Changed to snake_case
+            value={formData.school_name}
             onChange={handleInputChange}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.schoolName ? 'border-red-300' : 'border-gray-300'
+              errors.school_name ? 'border-red-300' : 'border-gray-300'
             }`}
           />
-          {errors.schoolName && <p className="text-red-500 text-sm mt-1">{errors.schoolName}</p>}
+          {errors.school_name && <p className="text-red-500 text-sm mt-1">{errors.school_name}</p>}
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Exam Register Number *</label>
           <input
             type="text"
-            name="examRegisterNumber"
-            value={formData.examRegisterNumber}
+            name="exam_register_number" // ✅ FIXED: Changed to snake_case
+            value={formData.exam_register_number}
             onChange={handleInputChange}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.examRegisterNumber ? 'border-red-300' : 'border-gray-300'
+              errors.exam_register_number ? 'border-red-300' : 'border-gray-300'
             }`}
           />
-          {errors.examRegisterNumber && <p className="text-red-500 text-sm mt-1">{errors.examRegisterNumber}</p>}
+          {errors.exam_register_number && <p className="text-red-500 text-sm mt-1">{errors.exam_register_number}</p>}
         </div>
       </div>
 
@@ -573,8 +568,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
         <label className="block text-sm font-medium text-gray-700 mb-2">EMIS Number</label>
         <input
           type="text"
-          name="emisNo"
-          value={formData.emisNo}
+          name="emis_no" // ✅ FIXED: Changed to snake_case
+          value={formData.emis_no}
           onChange={handleInputChange}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
@@ -594,7 +589,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
         </div>
         
         <div className="space-y-3">
-          {formData.subjectMarks.map((subjectMark, index) => (
+          {/* ✅ FIXED: Changed from subjectMarks to subjects */}
+          {formData.subjects.map((subjectMark, index) => (
             <div key={subjectMark.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
               <div className="md:col-span-5">
                 <input
@@ -618,7 +614,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
                 />
               </div>
               <div className="md:col-span-2">
-                {formData.subjectMarks.length > 1 && (
+                {/* ✅ FIXED: Changed from subjectMarks to subjects */}
+                {formData.subjects.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeSubjectMark(subjectMark.id)}
@@ -639,8 +636,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">Total Marks</label>
           <input
             type="text"
-            name="totalMarks"
-            value={formData.totalMarks}
+            name="total_marks" // ✅ FIXED: Changed to snake_case
+            value={formData.total_marks}
             readOnly
             className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
           />
@@ -650,8 +647,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">Percentage</label>
           <input
             type="text"
-            name="markPercentage"
-            value={formData.markPercentage}
+            name="mark_percentage" // ✅ FIXED: Changed to snake_case
+            value={formData.mark_percentage}
             readOnly
             className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
           />
@@ -661,8 +658,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">Cut-off</label>
           <input
             type="number"
-            name="cutoff"
-            value={formData.cutoff}
+            name="cutoff_marks" // ✅ FIXED: Changed to snake_case
+            value={formData.cutoff_marks}
             readOnly
             className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
           />
@@ -674,8 +671,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           <label className="block text-sm font-medium text-gray-700 mb-2">Month & Year of Passing</label>
           <input
             type="month"
-            name="monthYearPassing"
-            value={formData.monthYearPassing}
+            name="month_year_passing" // ✅ FIXED: Changed to snake_case
+            value={formData.month_year_passing}
             onChange={handleInputChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
@@ -690,13 +687,13 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
             <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
             <input
               type="file"
-              onChange={(e) => handleFileChange(e, 'photo')}
+              onChange={(e) => handleFileChange(e, 'passport_photo')} // ✅ FIXED: Changed to snake_case
               accept=".jpg,.jpeg,.png"
               className="hidden"
-              id="photo"
+              id="passport_photo"
             />
             <label
-              htmlFor="photo"
+              htmlFor="passport_photo"
               className="text-blue-600 hover:text-blue-800 cursor-pointer"
             >
               Choose file
@@ -711,13 +708,13 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
             <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
             <input
               type="file"
-              onChange={(e) => handleFileChange(e, 'aadhaarCard')}
+              onChange={(e) => handleFileChange(e, 'aadhaar_card')} // ✅ FIXED: Changed to snake_case
               accept=".jpg,.jpeg,.png"
               className="hidden"
-              id="aadhaar"
+              id="aadhaar_card"
             />
             <label
-              htmlFor="aadhaar"
+              htmlFor="aadhaar_card"
               className="text-blue-600 hover:text-blue-800 cursor-pointer"
             >
               Choose file
@@ -737,11 +734,11 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Course Type *</label>
           <select
-            name="courseType"
-            value={formData.courseType}
+            name="course_type"
+            value={formData.course_type}
             onChange={handleInputChange}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.courseType ? 'border-red-300' : 'border-gray-300'
+              errors.course_type ? 'border-red-300' : 'border-gray-300'
             }`}
           >
             <option value="">Select Course Type</option>
@@ -749,40 +746,40 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
               <option key={type} value={type}>{type}</option>
             ))}
           </select>
-          {errors.courseType && <p className="text-red-500 text-sm mt-1">{errors.courseType}</p>}
+          {errors.course_type && <p className="text-red-500 text-sm mt-1">{errors.course_type}</p>}
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Course Name *</label>
           <select
-            name="courseName"
-            value={formData.courseName}
+            name="course_name"
+            value={formData.course_name}
             onChange={handleInputChange}
-            disabled={!formData.courseType}
+            disabled={!formData.course_type}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-              errors.courseName ? 'border-red-300' : 'border-gray-300'
+              errors.course_name ? 'border-red-300' : 'border-gray-300'
             }`}
           >
             <option value="">Select Course</option>
-            {getCourseOptions(formData.courseType).map(course => (
+            {getCourseOptions(formData.course_type).map(course => (
               <option key={course} value={course}>{course}</option>
             ))}
           </select>
-          {errors.courseName && <p className="text-red-500 text-sm mt-1">{errors.courseName}</p>}
+          {errors.course_name && <p className="text-red-500 text-sm mt-1">{errors.course_name}</p>}
         </div>
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">Course Mode</label>
         <select
-          name="courseMode"
-          value={formData.courseMode}
+          name="course_mode"
+          value={formData.course_mode}
           onChange={handleInputChange}
-          disabled={!formData.courseName}
+          disabled={!formData.course_name}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="">Select Mode</option>
-          {getCourseModes(formData.courseName).map(mode => (
+          {getCourseModes(formData.course_name).map(mode => (
             <option key={mode} value={mode}>{mode}</option>
           ))}
         </select>
@@ -794,8 +791,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Physically Challenged</label>
           <select
-            name="physicallyChallenged"
-            value={formData.physicallyChallenged}
+            name="physically_challenged"
+            value={formData.physically_challenged}
             onChange={handleInputChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
@@ -808,8 +805,8 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Ex-Serviceman</label>
           <select
-            name="exServiceman"
-            value={formData.exServiceman}
+            name="ex_serviceman"
+            value={formData.ex_serviceman}
             onChange={handleInputChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
@@ -859,127 +856,126 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
   );
 
   const renderReviewSubmit = () => (
-    <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Review & Submit</h3>
+  <div className="space-y-6">
+    <h3 className="text-lg font-semibold text-gray-900 mb-4">Review & Submit</h3>
+    
+     {/* Success/Error Alerts */}
+    {submitStatus === 'success' && (
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="flex items-center space-x-3">
+          <CheckCircle className="h-5 w-5 text-green-600" />
+          <div>
+            <h4 className="text-green-800 font-medium">Success!</h4>
+            <p className="text-green-700 text-sm mt-1">{submitMessage}</p>
+            <p className="text-green-600 text-xs mt-2">Redirecting to dashboard...</p>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {submitStatus === 'error' && (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="flex items-center space-x-3">
+          <AlertCircle className="h-5 w-5 text-red-600" />
+          <div>
+            <h4 className="text-red-800 font-medium">Submission Failed</h4>
+            <p className="text-red-700 text-sm mt-1">{submitMessage}</p>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {submitStatus === 'loading' && (
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center space-x-3">
+          <Loader className="h-5 w-5 text-blue-600 animate-spin" />
+          <div>
+            <h4 className="text-blue-800 font-medium">Processing...</h4>
+            <p className="text-blue-700 text-sm mt-1">{submitMessage}</p>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <div className="bg-gray-50 rounded-lg p-6">
+      <h4 className="font-medium text-gray-900 mb-4">Application Summary</h4>
       
-       {/* Success/Error Alerts */}
-      {submitStatus === 'success' && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center space-x-3">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <div>
-              <h4 className="text-green-800 font-medium">Success!</h4>
-              <p className="text-green-700 text-sm mt-1">{submitMessage}</p>
-              <p className="text-green-600 text-xs mt-2">Redirecting to dashboard...</p>
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h5 className="text-sm font-medium text-gray-700 mb-2">Personal Information</h5>
+          <div className="text-sm text-gray-600 space-y-1">
+            <p><strong>Name:</strong> {formData.first_name} {formData.last_name}</p>
+            <p><strong>Email:</strong> {formData.email}</p>
+            <p><strong>Phone:</strong> {formData.phone_number}</p> {/* ✅ fixed */}
+            <p><strong>Aadhaar:</strong> {formData.aadhaar_number}</p>
+            <p><strong>Date of Birth:</strong> {formData.date_of_birth}</p>
           </div>
         </div>
-      )}
 
-      {submitStatus === 'error' && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center space-x-3">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <div>
-              <h4 className="text-red-800 font-medium">Submission Failed</h4>
-              <p className="text-red-700 text-sm mt-1">{submitMessage}</p>
-            </div>
+        <div>
+          <h5 className="text-sm font-medium text-gray-700 mb-2">Academic Background</h5>
+          <div className="text-sm text-gray-600 space-y-1">
+            <p><strong>School:</strong> {formData.school_name}</p>
+            <p><strong>Register No:</strong> {formData.exam_register_number}</p>
+            <p><strong>Total Marks:</strong> {formData.total_marks}</p>
+            <p><strong>Percentage:</strong> {formData.mark_percentage}%</p>
           </div>
         </div>
-      )}
 
-      {submitStatus === 'loading' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center space-x-3">
-            <Loader className="h-5 w-5 text-blue-600 animate-spin" />
-            <div>
-              <h4 className="text-blue-800 font-medium">Processing...</h4>
-              <p className="text-blue-700 text-sm mt-1">{submitMessage}</p>
-            </div>
+        <div>
+          <h5 className="text-sm font-medium text-gray-700 mb-2">Course Selection</h5>
+          <div className="text-sm text-gray-600 space-y-1">
+            <p><strong>Course Type:</strong> {formData.course_type}</p> {/* ✅ fixed */}
+            <p><strong>Course Name:</strong> {formData.course_name}</p> {/* ✅ fixed */}
+            <p><strong>Course Mode:</strong> {formData.course_mode}</p> {/* ✅ fixed */}
           </div>
         </div>
-      )}
 
-
-      <div className="bg-gray-50 rounded-lg p-6">
-        <h4 className="font-medium text-gray-900 mb-4">Application Summary</h4>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h5 className="text-sm font-medium text-gray-700 mb-2">Personal Information</h5>
-            <div className="text-sm text-gray-600 space-y-1">
-              <p><strong>Name:</strong> {formData.firstName} {formData.lastName}</p>
-              <p><strong>Email:</strong> {formData.email}</p>
-              <p><strong>Phone:</strong> {formData.phone}</p>
-              <p><strong>Aadhaar:</strong> {formData.aadhaarNumber}</p>
-              <p><strong>Date of Birth:</strong> {formData.dateOfBirth}</p>
-            </div>
-          </div>
-
-          <div>
-            <h5 className="text-sm font-medium text-gray-700 mb-2">Academic Background</h5>
-            <div className="text-sm text-gray-600 space-y-1">
-              <p><strong>School:</strong> {formData.schoolName}</p>
-              <p><strong>Register No:</strong> {formData.examRegisterNumber}</p>
-              <p><strong>Total Marks:</strong> {formData.totalMarks}</p>
-              <p><strong>Percentage:</strong> {formData.markPercentage}%</p>
-            </div>
-          </div>
-
-          <div>
-            <h5 className="text-sm font-medium text-gray-700 mb-2">Course Selection</h5>
-            <div className="text-sm text-gray-600 space-y-1">
-              <p><strong>Course Type:</strong> {formData.courseType}</p>
-              <p><strong>Course Name:</strong> {formData.courseName}</p>
-              <p><strong>Course Mode:</strong> {formData.courseMode}</p>
-            </div>
-          </div>
-
-          <div>
-            <h5 className="text-sm font-medium text-gray-700 mb-2">Documents Status</h5>
-            <div className="text-sm text-gray-600 space-y-1">
-              <p><strong>Photo:</strong> {formData.photo ? '✓ Uploaded' : '✗ Not uploaded'}</p>
-
-              <p><strong>Aadhaar Card:</strong> {formData.aadhaarCard ? '✓ Uploaded' : '✗ Not uploaded'}</p>
-              <p><strong>Transfer Certificate:</strong> {formData.transferCertificate ? '✓ Uploaded' : '✗ Not uploaded'}</p>
-            </div>
+        <div>
+          <h5 className="text-sm font-medium text-gray-700 mb-2">Documents Status</h5>
+          <div className="text-sm text-gray-600 space-y-1">
+            <p><strong>Photo:</strong> {formData.passport_photo ? '✓ Uploaded' : '✗ Not uploaded'}</p>
+            <p><strong>Aadhaar Card:</strong> {formData.aadhaar_card ? '✓ Uploaded' : '✗ Not uploaded'}</p> {/* ✅ fixed */}
+            <p><strong>Transfer Certificate:</strong> {formData.transfer_certificate ? '✓ Uploaded' : '✗ Not uploaded'}</p> {/* ✅ fixed */}
           </div>
         </div>
       </div>
-
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <div className="text-yellow-600 mt-0.5">
-            <Eye className="h-5 w-5" />
-          </div>
-          <div>
-            <h4 className="text-yellow-800 font-medium">Before You Submit</h4>
-                        <ul className="text-yellow-700 text-sm mt-2 space-y-1">
-              <li>• Please review all information carefully before submitting</li>
-              <li>• Ensure all required documents are uploaded</li>
-              <li>• Once submitted, you cannot edit the application</li>
-              <li>• Application will be verified by the administration</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-       <div className="flex items-center space-x-4">
-          <input
-            type="checkbox"
-            id="confirm-submit"
-            checked={isConfirmChecked}
-            onChange={(e) => setIsConfirmChecked(e.target.checked)}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          <label htmlFor="confirm-submit" className="text-sm text-gray-700">
-            I confirm that all information provided is true and accurate to the best of my knowledge
-          </label>
-        </div>
-
-      {errors.confirm && <p className="text-red-500 text-sm mt-1">{errors.confirm}</p>}
     </div>
-  );
+
+    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      <div className="flex items-start space-x-3">
+        <div className="text-yellow-600 mt-0.5">
+          <Eye className="h-5 w-5" />
+        </div>
+        <div>
+          <h4 className="text-yellow-800 font-medium">Before You Submit</h4>
+          <ul className="text-yellow-700 text-sm mt-2 space-y-1">
+            <li>• Please review all information carefully before submitting</li>
+            <li>• Ensure all required documents are uploaded</li>
+            <li>• Once submitted, you cannot edit the application</li>
+            <li>• Application will be verified by the administration</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+     <div className="flex items-center space-x-4">
+        <input
+          type="checkbox"
+          id="confirm-submit"
+          checked={isConfirmChecked}
+          onChange={(e) => setIsConfirmChecked(e.target.checked)}
+          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+        />
+        <label htmlFor="confirm-submit" className="text-sm text-gray-700">
+          I confirm that all information provided is true and accurate to the best of my knowledge
+        </label>
+      </div>
+
+    {errors.confirm && <p className="text-red-500 text-sm mt-1">{errors.confirm}</p>}
+  </div>
+);
+
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -997,7 +993,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           {/* Header */}
@@ -1055,13 +1051,13 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
             {renderStepContent()}
           </div>
 
-          {/* FIXED: Navigation Buttons Section */}
+          {/* Navigation Buttons Section */}
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
             <div>
               {currentStep > 1 && (
                 <button
                   onClick={prevStep}
-                  disabled={submitStatus === 'loading'} // Disable during submission
+                  disabled={submitStatus === 'loading'}
                   className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ArrowLeft className="h-4 w-4" />
@@ -1073,7 +1069,7 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
             <div className="flex items-center space-x-4">
               <button
                 onClick={handleSaveDraft}
-                disabled={submitStatus === 'loading'} // Disable during submission
+                disabled={submitStatus === 'loading'}
                 className="flex items-center space-x-2 px-4 py-2 text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="h-4 w-4" />
@@ -1083,16 +1079,15 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
               {currentStep < totalSteps ? (
                 <button
                   onClick={nextStep}
-                  disabled={submitStatus === 'loading'} // Disable during submission
+                  disabled={submitStatus === 'loading'}
                   className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span>Next</span>
                   <ArrowRight className="h-4 w-4" />
                 </button>
               ) : (
-                // FIXED: This button now calls handleSubmitApplication instead of submitApplication
                 <button
-                  onClick={handleSubmitApplication} // ✅ FIXED: Changed from submitApplication to handleSubmitApplication
+                  onClick={handleSubmitApplication}
                   disabled={submitStatus === 'loading' || !isConfirmChecked}
                   className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px] justify-center"
                 >
@@ -1121,8 +1116,6 @@ const ApplicationForm: React.FC<ApplicationFormProps> = ({ user, onNavigate }) =
           </div>
         )}
       </div>
-
-  
     </div>
   );
 };
