@@ -34,17 +34,6 @@ User.hasOne(PersonalInfo, {
   as: 'personalInfo'
 });
 
-
-AdminUser.hasOne(AdminProfile, { 
-  foreignKey: 'admin_id', 
-  as: 'adminProfile'   // ✅ match controller
-});
-
-AdminProfile.belongsTo(AdminUser, { 
-  foreignKey: 'admin_id', 
-  as: 'admin' 
-});
-
 PersonalInfo.belongsTo(User, {
   foreignKey: 'student_id',
   targetKey: 'student_id',
@@ -79,9 +68,24 @@ PersonalInfo.hasOne(AdmissionRecord, {
   as: 'admissionRecord'
 });
 
+// AdmissionRecord ↔ PersonalInfo (One-to-One via student_id)
 AdmissionRecord.belongsTo(PersonalInfo, {
   foreignKey: 'student_id',
+  targetKey: 'student_id',
   as: 'personalInfo'
+});
+
+// AdmissionRecord ↔ AcademicInfo (One-to-One via student_id)
+// Use unique alias 'studentAcademicInfo' to avoid conflict
+AdmissionRecord.belongsTo(AcademicInfo, {
+  foreignKey: 'student_id',
+  targetKey: 'student_id',
+  as: 'studentAcademicInfo'  // Unique alias
+});
+
+AcademicInfo.hasOne(AdmissionRecord, {
+  foreignKey: 'student_id',
+  as: 'admissionRecord'
 });
 
 // Course ↔ CourseDetail (One-to-Many)
@@ -104,6 +108,17 @@ Course.hasMany(CourseSeat, {
 CourseSeat.belongsTo(Course, {
   foreignKey: 'course_id',
   as: 'course'
+});
+
+// Admin associations
+AdminUser.hasOne(AdminProfile, { 
+  foreignKey: 'admin_id', 
+  as: 'adminProfile'
+});
+
+AdminProfile.belongsTo(AdminUser, { 
+  foreignKey: 'admin_id', 
+  as: 'admin' 
 });
 
 module.exports = {

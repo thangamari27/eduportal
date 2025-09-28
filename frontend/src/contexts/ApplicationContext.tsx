@@ -194,14 +194,9 @@ export const ApplicationProvider: React.FC<ApplicationProviderProps> = ({ childr
       setIsLoading(true);
       setError(null);
       
-      console.log('📝 Form Data before transformation:', formData);
-      
       const backendData = transformToBackendFormat(formData);
-      console.log('🔄 Transformed Data for backend:', backendData);
       
       const response = await admissionService.submitApplication(backendData);
-      
-      console.log('✅ Submission successful:', response);
       
       setSubmissionStatus('submitted');
       return response;

@@ -59,7 +59,7 @@ const submitApplication = async (req, res) => {
     // Create Admission Record
     await AdmissionRecord.create({
       admission_id: admissionId,
-      student_id: studentId,
+      student_id: studentId, 
       email: userEmail,
       application_status: 'Pending'
     }, { transaction });
@@ -211,12 +211,137 @@ const updateExtraInfo = async (req, res) => {
   }
 };
 
+
+const getAdmissionStatistics = async (req, res) => {
+  try {
+    const totalApplications = await AdmissionRecord.count();
+    const approvedApplications = await AdmissionRecord.count({
+      where: { application_status: 'Approved' }
+    });
+    const pendingApplications = await AdmissionRecord.count({
+      where: { application_status: 'Pending' }
+    });
+    const rejectedApplications = await AdmissionRecord.count({
+      where: { application_status: 'Rejected' }
+    });
+
+    res.json({
+      totalApplications,
+      approvedApplications,
+      pendingApplications,
+      rejectedApplications
+    });
+  } catch (error) {
+    console.error('Get admission statistics error:', error);
+    res.status(500).json({ error: 'Failed to get admission statistics' });
+  }
+};
+
+const getUserAdmissionStatistics = async (req, res) => {
+  try {
+    const studentId = req.user && req.user.student_id;
+    if (!studentId) {
+      return res.status(400).json({ error: 'Authenticated user missing student_id' });
+    }
+
+    // Four filtered counts (simple & clear)
+    const totalApplications = await AdmissionRecord.count({ where: { student_id: studentId } });
+    const approvedApplications = await AdmissionRecord.count({
+      where: { student_id: studentId, application_status: 'Approved' }
+    });
+    const pendingApplications = await AdmissionRecord.count({
+      where: { student_id: studentId, application_status: 'Pending' }
+    });
+    const rejectedApplications = await AdmissionRecord.count({
+      where: { student_id: studentId, application_status: 'Rejected' }
+    });
+
+    res.json({
+      student_id: studentId,
+      totalApplications,
+      approvedApplications,
+      pendingApplications,
+      rejectedApplications
+    });
+  } catch (error) {
+    console.error('Get user admission statistics error:', error);
+    res.status(500).json({ error: 'Failed to get user admission statistics' });
+  }
+};
+
+
+const getUserApplicationStatus = async (req, res) => { 
+  try {
+    const admissionRecord = await AdmissionRecord.findOne({
+      where: { student_id: req.user.student_id },
+      include: [
+        {
+          association: 'personalInfo',
+          attributes: ['first_name', 'last_name']
+        },
+        {
+          association: 'studentAcademicInfo',  // Updated alias
+          attributes: ['course_name']
+        }
+      ]
+    });
+
+    if (!admissionRecord) {
+      return res.status(404).json({ error: 'Application not found' });
+    }
+
+    // Calculate time since application
+    const applicationDate = new Date(admissionRecord.admission_timestamp);
+    const currentDate = new Date();
+    const timeDiff = currentDate - applicationDate;
+    
+    const daysAgo = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
+    const minutesAgo = Math.floor(timeDiff / (1000 * 60));
+
+    let appliedTime;
+    if (daysAgo > 0) {
+      appliedTime = `${daysAgo} day${daysAgo > 1 ? 's' : ''} ago`;
+    } else if (hoursAgo > 0) {
+      appliedTime = `${hoursAgo} hour${hoursAgo > 1 ? 's' : ''} ago`;
+    } else {
+      appliedTime = `${minutesAgo} minute${minutesAgo > 1 ? 's' : ''} ago`;
+    }
+
+    res.json({
+      admission_id: admissionRecord.admission_id,
+      application_status: admissionRecord.application_status,
+      admission_timestamp: admissionRecord.admission_timestamp,
+      applied_time: appliedTime,
+      student_name: admissionRecord.personalInfo ? 
+        `${admissionRecord.personalInfo.first_name} ${admissionRecord.personalInfo.last_name}` : 
+        'N/A',
+      course_name: admissionRecord.studentAcademicInfo  // Updated alias
+        ? admissionRecord.studentAcademicInfo.course_name 
+        : 'N/A'
+    });
+  } catch (error) {
+    console.error('Get user application status error:', error);
+    res.status(500).json({ error: 'Failed to get application status' });
+  }
+};
+
+
 // Get Admission Record
 const getAdmissionRecord = async (req, res) => {
   try {
     const admissionRecord = await AdmissionRecord.findOne({
       where: { student_id: req.user.student_id },
-      include: ['personalInfo']
+      include: [
+        {
+          association: 'personalInfo',
+          attributes: ['first_name', 'last_name', 'email', 'phone']
+        },
+        {
+          association: 'studentAcademicInfo',  // Updated alias
+          attributes: ['course_name', 'academic_id']
+        }
+      ]
     });
 
     if (!admissionRecord) {
@@ -244,7 +369,13 @@ const getCompleteApplication = async (req, res) => {
           association: 'extraInfo'
         },
         {
-          association: 'admissionRecord'
+          association: 'admissionRecord',
+          include: [
+            {
+              association: 'studentAcademicInfo',  // Updated alias if needed
+              attributes: ['course_name']
+            }
+          ]
         }
       ]
     });
@@ -264,10 +395,17 @@ const getCompleteApplication = async (req, res) => {
 const getAllApplications = async (req, res) => {
   try {
     const applications = await AdmissionRecord.findAll({
-      include: [{
-        association: 'personalInfo',
-        include: ['academicInfo', 'extraInfo']
-      }]
+      include: [
+        {
+          association: 'personalInfo',
+          attributes: ['first_name', 'last_name', 'email', 'phone']
+        },
+        {
+          association: 'studentAcademicInfo',  // Updated alias
+          attributes: ['course_name', 'academic_id']
+        }
+      ],
+      order: [['admission_timestamp', 'DESC']]
     });
 
     res.json({ applications });
@@ -316,6 +454,9 @@ module.exports = {
   updateAcademicInfo,
   getExtraInfo,
   updateExtraInfo,
+  getAdmissionStatistics,
+  getUserAdmissionStatistics,
+  getUserApplicationStatus,
   getAdmissionRecord,
   getCompleteApplication,
   getAllApplications,

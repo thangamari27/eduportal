@@ -72,10 +72,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ user, isAdmin = false, onNavi
   // Load initial profile data from multiple sources
     // Load initial profile data from multiple sources
 useEffect(() => {
-  console.log('🔄 ProfilePage: Data sources changed');
-  console.log('AuthContext profileData:', authProfileData);
-  console.log('Legacy user prop:', user);
-  
   let finalProfileData = {
     first_name: '',
     last_name: '',
@@ -88,7 +84,7 @@ useEffect(() => {
 
   // Priority 1: Use AuthContext profile data
   if (authProfileData) {
-    console.log('✅ Using AuthContext profile data');
+   
     
     // Extract username from email if first_name is empty
     const userName = authProfileData.email?.split('@')[0] || 'User';
@@ -105,7 +101,6 @@ useEffect(() => {
   }
   // Priority 2: Use legacy user prop data
   else if (user && user.profileData) {
-    console.log('✅ Using legacy user.profileData');
     finalProfileData = {
       first_name: user.profileData.first_name || '',
       last_name: user.profileData.last_name || '',
@@ -118,7 +113,6 @@ useEffect(() => {
   }
   // Priority 3: Use basic user data
   else if (user) {
-    console.log('✅ Using basic user data');
     const userName = user.name || user.email?.split('@')[0] || 'User';
     
     finalProfileData = {
@@ -133,8 +127,6 @@ useEffect(() => {
   } else {
     console.log('❌ No user data available');
   }
-
-  console.log('🎯 Final profile data to display:', finalProfileData);
   setProfileData(finalProfileData);
 }, [authProfileData, user]);
 
@@ -223,6 +215,27 @@ useEffect(() => {
       default: return 'text-gray-600 bg-gray-100';
     }
   };
+
+  const formatDateForInput = (isoDate: string) => {
+    if (!isoDate) return '';
+    const date = new Date(isoDate);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // months are 0-based
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatGender = (gender: string) => {
+    if (!gender) return '';
+    switch (gender.toLowerCase()) {
+      case 'male': return 'Male';
+      case 'female': return 'Female';
+      case 'other': return 'Other';
+      default: return '';
+    }
+  };
+
+
 
   const renderPersonalInfo = () => (
     <div className="space-y-6">
@@ -340,7 +353,7 @@ useEffect(() => {
             <input 
               type="date" 
               name="date_of_birth" 
-              value={profileData.date_of_birth} 
+              value={formatDateForInput(profileData.date_of_birth)} 
               onChange={handleInputChange}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
             />
@@ -354,7 +367,7 @@ useEffect(() => {
             <Users className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
             <select 
               name="gender" 
-              value={profileData.gender} 
+              value={formatGender(profileData.gender)} 
               onChange={handleInputChange}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
