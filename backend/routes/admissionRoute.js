@@ -5,24 +5,22 @@ const upload = multer({ dest: 'uploads/' });
 const admissionController = require('../controllers/admissionController');
 const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
 
-// User routes (require authentication)
-router.use(authenticateToken);
 
-// Complete application flow
-router.post('/submit', admissionController.submitApplication);
-router.get('/application', admissionController.getCompleteApplication);
+// ✅ User routes (require user authentication)
+router.post('/submit', authenticateToken, admissionController.submitApplication);
+router.get('/application', authenticateToken, admissionController.getCompleteApplication);
 
-// Individual component routes
-router.get('/personal-info', admissionController.getPersonalInfo);
-router.put('/personal-info', admissionController.updatePersonalInfo);
-router.get('/academic-info', admissionController.getAcademicInfo);
-router.put('/academic-info', admissionController.updateAcademicInfo);
-router.get('/extra-info', admissionController.getExtraInfo);
-router.put('/extra-info', admissionController.updateExtraInfo);
-router.get('/admission-record', admissionController.getAdmissionRecord);
+// Individual component routes (user auth)
+router.get('/personal-info', authenticateToken, admissionController.getPersonalInfo);
+router.put('/personal-info', authenticateToken, admissionController.updatePersonalInfo);
+router.get('/academic-info', authenticateToken, admissionController.getAcademicInfo);
+router.put('/academic-info', authenticateToken, admissionController.updateAcademicInfo);
+router.get('/extra-info', authenticateToken, admissionController.getExtraInfo);
+router.put('/extra-info', authenticateToken, admissionController.updateExtraInfo);
+router.get('/admission-record', authenticateToken, admissionController.getAdmissionRecord);
 
-// Dashboard statistics route
-router.get('/admin-dashboard/statistics', authenticateToken, admissionController.getAdmissionStatistics);
+// Dashboard statistics routes
+router.get('/admin-dashboard/statistics', authenticateAdmin, admissionController.getAdmissionStatistics);
 router.get('/student-dashboard/statistics', authenticateToken, admissionController.getUserAdmissionStatistics);
 
 // User application status route
@@ -31,8 +29,6 @@ router.get('/application/status', authenticateToken, admissionController.getUser
 // Admin routes
 router.get('/admin/applications', authenticateAdmin, admissionController.getAllApplications);
 router.put('/admin/application/:admissionId/status', authenticateAdmin, admissionController.updateApplicationStatus);
-
-
 router.post('/upload', authenticateToken, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -52,4 +48,3 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req, res
 });
 
 module.exports = router;
-

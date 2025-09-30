@@ -58,68 +58,108 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initializeAuth();
   }, []);
 
-  const initializeAuth = async () => {
-    const token = localStorage.getItem('authToken');
-    const storedUser = localStorage.getItem('user');
-    const storedUserType = localStorage.getItem('userType') as 'user' | 'admin' | null;
+  // In AuthContext.tsx - UPDATE the initializeAuth function
+const initializeAuth = async () => {
+  const token = localStorage.getItem('authToken');
+  const storedUser = localStorage.getItem('user');
+  const storedUserType = localStorage.getItem('userType') as 'user' | 'admin' | null;
 
-    if (token && storedUser && storedUserType) {
-      try {
-        const userData = JSON.parse(storedUser) as Omit<User, 'role' | 'token'>;
-        const role: UserRole = storedUserType === 'admin' ? 'admin' : 'student';
-        const userObj = { ...userData, role, token };
-        
-        setUser(userObj);
-        setUserType(storedUserType);
-        
-        // Load profile data using the new simplified approach
-        await loadProfileData();
-
-        // Verify token is still valid
-        await apiService.getProfile();
-      } catch {
-        logout();
-      }
-    }
-    setIsLoading(false);
-  };
-
-  // SIMPLIFIED: Single source of truth from profileService
-  const loadProfileData = async (): Promise<void> => {
-    if (!profileService.isAuthenticated()) return;
-    
+  // ✅ STRONGER VALIDATION: Check all required items exist
+  if (token && storedUser && storedUserType) {
     try {
-      setProfileLoading(true);
-      setProfileError(null);
+      const userData = JSON.parse(storedUser) as Omit<User, 'role' | 'token'>;
+      const role: UserRole = storedUserType === 'admin' ? 'admin' : 'student';
+      const userObj = { ...userData, role, token };
       
-      const result = await profileService.getProfile();
+      setUser(userObj);
+      setUserType(storedUserType);
       
-      if (result.success && result.data) {
-        setProfileData(result.data);
-      } else {
-        setProfileError(result.error || 'Failed to load profile data');
-        // Create basic profile from user data as fallback
-        if (user) {
-          setProfileData({
-            id: parseInt(user.id) || 0,
-            email: user.email,
-            first_name: user.name?.split(' ')[0] || '',
-            last_name: user.name?.split(' ').slice(1).join(' ') || '',
-            phone_number: user.phone_no || '',
-            date_of_birth: null,
-            gender: '',
-            address: '',
-            student_id: user.student_id
-          });
-        }
+      // ✅ FORCE PROFILE LOAD: Always load profile data on refresh
+      await loadProfileData();
+      
+      // ✅ OPTIONAL: Verify token is still valid (remove if causing issues)
+      try {
+        await apiService.getProfile();
+      } catch (error) {
+        console.warn('Token validation failed, but keeping user logged in');
+        // Don't logout on token validation failure during refresh
       }
+      
     } catch (error) {
-      console.error('Error loading profile data:', error);
-      setProfileError('Failed to load profile data');
-    } finally {
-      setProfileLoading(false);
+      console.error('Auth initialization failed:', error);
+      // Don't auto-logout on parse errors during refresh
     }
-  };
+  } else {
+    // ✅ CLEANUP: If any item is missing, clear everything
+    if (token || storedUser || storedUserType) {
+      console.warn('Incomplete auth data, clearing storage');
+      logout();
+    }
+  }
+  setIsLoading(false);
+};
+
+  // In AuthContext.tsx - UPDATE loadProfileData function
+const loadProfileData = async (): Promise<void> => {
+  // ✅ STRONGER CHECK: Verify we have all required auth data
+  const token = localStorage.getItem('authToken');
+  const userType = localStorage.getItem('userType');
+  
+  if (!token || !userType) {
+    return;
+  }
+  
+  try {
+    setProfileLoading(true);
+    setProfileError(null);
+    
+    const result = await profileService.getProfile();
+    
+    if (result.success && result.data) {
+      setProfileData(result.data);
+    } else {
+      setProfileError(result.error || 'Failed to load profile data');
+      console.warn('Profile load failed, using fallback data');
+      
+      // ✅ BETTER FALLBACK: Create profile from stored user data
+      if (user) {
+        const fallbackProfile: Profile = {
+          id: parseInt(user.id) || 0,
+          email: user.email,
+          first_name: user.name?.split(' ')[0] || '',
+          last_name: user.name?.split(' ').slice(1).join(' ') || '',
+          phone_number: user.phone_no || '',
+          date_of_birth: null,
+          gender: '',
+          address: '',
+          student_id: user.student_id
+        };
+        setProfileData(fallbackProfile);
+      }
+    }
+  } catch (error) {
+    console.error('Error loading profile data:', error);
+    setProfileError('Failed to load profile data');
+    
+    // ✅ FALLBACK ON ERROR: Still set basic profile from user data
+    if (user) {
+      const fallbackProfile: Profile = {
+        id: parseInt(user.id) || 0,
+        email: user.email,
+        first_name: user.name?.split(' ')[0] || '',
+        last_name: user.name?.split(' ').slice(1).join(' ') || '',
+        phone_number: user.phone_no || '',
+        date_of_birth: null,
+        gender: '',
+        address: '',
+        student_id: user.student_id
+      };
+      setProfileData(fallbackProfile);
+    }
+  } finally {
+    setProfileLoading(false);
+  }
+};
 
   const createUserObject = (userData: any, token: string, role: UserRole): User => ({
     ...userData,

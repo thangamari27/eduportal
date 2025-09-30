@@ -108,7 +108,7 @@ const startServer = async () => {
     // Sync models with database
     await sequelize.sync({ 
       force: false, // Set to true in development to drop and recreate tables
-      alter: process.env.NODE_ENV === 'development' // Auto-update tables in dev
+      alter: false
     });
     console.log('✅ Database synced');
     

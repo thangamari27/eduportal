@@ -25,70 +25,57 @@ const AcademicInfo = AcademicInfoModel(sequelize, DataTypes);
 const ExtraInfo = ExtraInfoModel(sequelize, DataTypes);
 const AdmissionRecord = AdmissionRecordModel(sequelize, DataTypes);
 
-// Define Associations
+// Define Associations - OPTIMIZED VERSION
 
-// User ↔ PersonalInfo (One-to-One via student_id)
+// Core User Relationships
 User.hasOne(PersonalInfo, {
   foreignKey: 'student_id',
   sourceKey: 'student_id',
   as: 'personalInfo'
 });
 
-PersonalInfo.belongsTo(User, {
-  foreignKey: 'student_id',
-  targetKey: 'student_id',
-  as: 'user'
-});
-
-// PersonalInfo ↔ AcademicInfo (One-to-One)
+// PersonalInfo central relationships
 PersonalInfo.hasOne(AcademicInfo, {
   foreignKey: 'student_id',
   as: 'academicInfo'
 });
 
-AcademicInfo.belongsTo(PersonalInfo, {
-  foreignKey: 'student_id',
-  as: 'personalInfo'
-});
-
-// PersonalInfo ↔ ExtraInfo (One-to-One)
 PersonalInfo.hasOne(ExtraInfo, {
   foreignKey: 'student_id',
   as: 'extraInfo'
 });
 
-ExtraInfo.belongsTo(PersonalInfo, {
-  foreignKey: 'student_id',
-  as: 'personalInfo'
-});
-
-// PersonalInfo ↔ AdmissionRecord (One-to-One)
 PersonalInfo.hasOne(AdmissionRecord, {
   foreignKey: 'student_id',
   as: 'admissionRecord'
 });
 
-// AdmissionRecord ↔ PersonalInfo (One-to-One via student_id)
+// AcademicInfo relationships
+AcademicInfo.belongsTo(PersonalInfo, {
+  foreignKey: 'student_id',
+  as: 'personalInfo'
+});
+
+// ExtraInfo relationships  
+ExtraInfo.belongsTo(PersonalInfo, {
+  foreignKey: 'student_id',
+  as: 'personalInfo'
+});
+
+// AdmissionRecord relationships
 AdmissionRecord.belongsTo(PersonalInfo, {
   foreignKey: 'student_id',
   targetKey: 'student_id',
   as: 'personalInfo'
 });
 
-// AdmissionRecord ↔ AcademicInfo (One-to-One via student_id)
-// Use unique alias 'studentAcademicInfo' to avoid conflict
 AdmissionRecord.belongsTo(AcademicInfo, {
   foreignKey: 'student_id',
   targetKey: 'student_id',
-  as: 'studentAcademicInfo'  // Unique alias
+  as: 'academicInfo'
 });
 
-AcademicInfo.hasOne(AdmissionRecord, {
-  foreignKey: 'student_id',
-  as: 'admissionRecord'
-});
-
-// Course ↔ CourseDetail (One-to-Many)
+// Course relationships (unchanged - these are fine)
 Course.hasMany(CourseDetail, {
   foreignKey: 'course_id',
   as: 'courseDetails'
@@ -99,7 +86,6 @@ CourseDetail.belongsTo(Course, {
   as: 'course'
 });
 
-// Course ↔ CourseSeat (One-to-Many)
 Course.hasMany(CourseSeat, {
   foreignKey: 'course_id',
   as: 'courseSeats'
@@ -110,7 +96,7 @@ CourseSeat.belongsTo(Course, {
   as: 'course'
 });
 
-// Admin associations
+// Admin relationships (unchanged - these are fine)
 AdminUser.hasOne(AdminProfile, { 
   foreignKey: 'admin_id', 
   as: 'adminProfile'

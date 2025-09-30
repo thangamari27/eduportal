@@ -211,7 +211,7 @@ const updateExtraInfo = async (req, res) => {
   }
 };
 
-
+// Admin: Get Admission Statistics
 const getAdmissionStatistics = async (req, res) => {
   try {
     const totalApplications = await AdmissionRecord.count();
@@ -237,6 +237,7 @@ const getAdmissionStatistics = async (req, res) => {
   }
 };
 
+// Student: Get User Admission Statistics
 const getUserAdmissionStatistics = async (req, res) => {
   try {
     const studentId = req.user && req.user.student_id;
@@ -244,7 +245,6 @@ const getUserAdmissionStatistics = async (req, res) => {
       return res.status(400).json({ error: 'Authenticated user missing student_id' });
     }
 
-    // Four filtered counts (simple & clear)
     const totalApplications = await AdmissionRecord.count({ where: { student_id: studentId } });
     const approvedApplications = await AdmissionRecord.count({
       where: { student_id: studentId, application_status: 'Approved' }
@@ -269,7 +269,7 @@ const getUserAdmissionStatistics = async (req, res) => {
   }
 };
 
-
+// Student: Get User Application Status
 const getUserApplicationStatus = async (req, res) => { 
   try {
     const admissionRecord = await AdmissionRecord.findOne({
@@ -280,7 +280,7 @@ const getUserApplicationStatus = async (req, res) => {
           attributes: ['first_name', 'last_name']
         },
         {
-          association: 'studentAcademicInfo',  // Updated alias
+          association: 'academicInfo',  // ✅ CORRECTED
           attributes: ['course_name']
         }
       ]
@@ -316,8 +316,8 @@ const getUserApplicationStatus = async (req, res) => {
       student_name: admissionRecord.personalInfo ? 
         `${admissionRecord.personalInfo.first_name} ${admissionRecord.personalInfo.last_name}` : 
         'N/A',
-      course_name: admissionRecord.studentAcademicInfo  // Updated alias
-        ? admissionRecord.studentAcademicInfo.course_name 
+      course_name: admissionRecord.academicInfo  // ✅ CORRECTED
+        ? admissionRecord.academicInfo.course_name 
         : 'N/A'
     });
   } catch (error) {
@@ -326,8 +326,7 @@ const getUserApplicationStatus = async (req, res) => {
   }
 };
 
-
-// Get Admission Record
+// Student: Get Admission Record
 const getAdmissionRecord = async (req, res) => {
   try {
     const admissionRecord = await AdmissionRecord.findOne({
@@ -335,10 +334,10 @@ const getAdmissionRecord = async (req, res) => {
       include: [
         {
           association: 'personalInfo',
-          attributes: ['first_name', 'last_name', 'email', 'phone']
+          attributes: ['first_name', 'last_name', 'email', 'phone_number']
         },
         {
-          association: 'studentAcademicInfo',  // Updated alias
+          association: 'academicInfo',  // ✅ CORRECTED
           attributes: ['course_name', 'academic_id']
         }
       ]
@@ -355,7 +354,7 @@ const getAdmissionRecord = async (req, res) => {
   }
 };
 
-// Get Complete Application (All data)
+// Student: Get Complete Application
 const getCompleteApplication = async (req, res) => {
   try {
     const personalInfo = await PersonalInfo.findOne({
@@ -372,7 +371,7 @@ const getCompleteApplication = async (req, res) => {
           association: 'admissionRecord',
           include: [
             {
-              association: 'studentAcademicInfo',  // Updated alias if needed
+              association: 'academicInfo',  // ✅ CORRECTED
               attributes: ['course_name']
             }
           ]
@@ -391,31 +390,44 @@ const getCompleteApplication = async (req, res) => {
   }
 };
 
-// Admin: Get All Applications
+// Admin: Get All Applications - FIXED
 const getAllApplications = async (req, res) => {
   try {
+    
     const applications = await AdmissionRecord.findAll({
       include: [
         {
           association: 'personalInfo',
-          attributes: ['first_name', 'last_name', 'email', 'phone']
+          attributes: ['first_name', 'last_name', 'email', 'phone_number'],
+          required: false
         },
         {
-          association: 'studentAcademicInfo',  // Updated alias
-          attributes: ['course_name', 'academic_id']
+          association: 'academicInfo',  // ✅ CORRECTED
+          attributes: ['course_name', 'academic_id'],
+          required: false
         }
       ],
       order: [['admission_timestamp', 'DESC']]
     });
 
-    res.json({ applications });
+    res.json({ 
+      applications,
+      count: applications.length,
+      message: `Retrieved ${applications.length} applications successfully`
+    });
+
   } catch (error) {
-    console.error('Get all applications error:', error);
-    res.status(500).json({ error: 'Failed to get applications' });
+    console.error('❌ Get all applications error:', error);
+    console.error('Error details:', error.message);
+    
+    res.status(500).json({ 
+      error: 'Failed to get applications',
+      details: error.message
+    });
   }
 };
 
-// Admin: Update Application Status
+// Admin: Update Application Status - FIXED
 const updateApplicationStatus = async (req, res) => {
   try {
     const { admissionId } = req.params;
@@ -436,10 +448,18 @@ const updateApplicationStatus = async (req, res) => {
 
     const admissionRecord = await AdmissionRecord.findOne({
       where: { admission_id: admissionId },
-      include: ['personalInfo']
+      include: [
+        {
+          association: 'personalInfo',
+          attributes: ['first_name', 'last_name']
+        }
+      ]
     });
 
-    res.json({ message: 'Application status updated', admissionRecord });
+    res.json({ 
+      message: 'Application status updated successfully', 
+      admissionRecord 
+    });
   } catch (error) {
     console.error('Update application status error:', error);
     res.status(500).json({ error: 'Failed to update application status' });

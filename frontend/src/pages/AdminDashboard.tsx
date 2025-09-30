@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   BookOpen, 
@@ -23,6 +23,9 @@ import {
   GraduationCap,
   Calendar
 } from 'lucide-react';
+
+import { useAdmin } from '../contexts/AdminContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AdminDashboardProps {
   user: any;
@@ -57,11 +60,29 @@ interface Course {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => {
+  const { user: authUser } = useAuth();
+  const {
+    stats,
+    applications: realApplications,
+    courses: realCourses,
+    statsLoading,
+    applicationsLoading,
+    coursesLoading,
+    refreshStats,
+    refreshApplications,
+    refreshCourses,
+    updateApplicationStatus,
+    createCourse,
+    updateCourse,
+    deleteCourse
+  } = useAdmin();
+
+  // State management
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<any | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<any | null>(null);
   const [showApplicationModal, setShowApplicationModal] = useState(false);
   const [showAddCourseModal, setShowAddCourseModal] = useState(false);
   const [showManageSeatsModal, setShowManageSeatsModal] = useState(false);
@@ -70,145 +91,90 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Mock data for demonstration
-  const stats = [
-    { label: 'Total Applications', value: '1,234', change: '+12%', icon: FileText, color: 'text-blue-600' },
-    { label: 'Pending Review', value: '156', change: '+5%', icon: Clock, color: 'text-yellow-600' },
-    { label: 'Approved', value: '987', change: '+8%', icon: CheckCircle, color: 'text-green-600' },
-    { label: 'Rejected Applications', value: '91', change: '+3%', icon: AlertCircle, color: 'text-red-600' }
-  ];
-
-  const [applications, setApplications] = useState<Application[]>([
-    {
-      id: 1,
-      name: 'Rajesh Kumar',
-      email: 'rajesh.kumar@example.com',
-      course: 'B.Sc. Computer Science',
-      status: 'pending',
-      submittedDate: '2024-01-15',
-      phone: '+91 9876543210',
-      academicScore: '85%',
-      address: '123 Main St, Chennai, Tamil Nadu',
-      dateOfBirth: '2000-05-15',
-      previousEducation: 'Higher Secondary Education'
+  // Transform real data to match UI format
+  const statsData = stats ? [
+    { 
+      label: 'Total Applications', 
+      value: stats.totalApplications?.toString() || '0', 
+      change: '+12%', 
+      icon: FileText, 
+      color: 'text-blue-600' 
     },
-    {
-      id: 2,
-      name: 'Priya Sharma',
-      email: 'priya.sharma@example.com',
-      course: 'B.A. English Literature',
-      status: 'approved',
-      submittedDate: '2024-01-14',
-      phone: '+91 8765432109',
-      academicScore: '92%',
-      address: '456 Oak Ave, Bangalore, Karnataka',
-      dateOfBirth: '2001-08-22',
-      previousEducation: 'State Board HSC'
+    { 
+      label: 'Pending Review', 
+      value: stats.pendingApplications?.toString() || '0', 
+      change: '+5%', 
+      icon: Clock, 
+      color: 'text-yellow-600' 
     },
-    {
-      id: 3,
-      name: 'Vikram Singh',
-      email: 'vikram.singh@example.com',
-      course: 'M.Sc. Mathematics',
-      status: 'pending',
-      submittedDate: '2024-01-13',
-      phone: '+91 7654321098',
-      academicScore: '88%',
-      address: '789 Pine Rd, Mumbai, Maharashtra',
-      dateOfBirth: '1999-12-10',
-      previousEducation: 'B.Sc. Mathematics'
+    { 
+      label: 'Approved', 
+      value: stats.approvedApplications?.toString() || '0', 
+      change: '+8%', 
+      icon: CheckCircle, 
+      color: 'text-green-600' 
     },
-    {
-      id: 4,
-      name: 'Anjali Patel',
-      email: 'anjali.patel@example.com',
-      course: 'B.Com. Accounting',
-      status: 'rejected',
-      submittedDate: '2024-01-12',
-      phone: '+91 6543210987',
-      academicScore: '76%',
-      address: '321 Elm St, Ahmedabad, Gujarat',
-      dateOfBirth: '2000-03-25',
-      previousEducation: 'Commerce Stream HSC'
-    },
-    {
-      id: 5,
-      name: 'Suresh Menon',
-      email: 'suresh.menon@example.com',
-      course: 'B.A. History',
-      status: 'approved',
-      submittedDate: '2024-01-11',
-      phone: '+91 9432109876',
-      academicScore: '89%',
-      address: '654 Cedar Ln, Kochi, Kerala',
-      dateOfBirth: '2001-07-18',
-      previousEducation: 'Arts Stream HSC'
-    },
-    {
-      id: 6,
-      name: 'Lakshmi Iyer',
-      email: 'lakshmi.iyer@example.com',
-      course: 'M.Sc. Physics',
-      status: 'pending',
-      submittedDate: '2024-01-10',
-      phone: '+91 8321098765',
-      academicScore: '91%',
-      address: '987 Birch Ave, Hyderabad, Telangana',
-      dateOfBirth: '1998-11-30',
-      previousEducation: 'B.Sc. Physics'
+    { 
+      label: 'Rejected Applications', 
+      value: stats.rejectedApplications?.toString() || '0', 
+      change: '+3%', 
+      icon: AlertCircle, 
+      color: 'text-red-600' 
     }
-  ]);
+  ] : [];
 
-  const [courses, setCourses] = useState<Course[]>([
-    {
-      id: 1,
-      title: 'B.Sc. Computer Science',
-      category: 'Science',
-      duration: '3 years',
-      fee: 45000,
-      totalSeats: 60,
-      filledSeats: 48,
-      status: 'active',
-      description: 'Comprehensive computer science program covering programming, algorithms, and software development.',
-      eligibility: '10+2 with Science stream and minimum 60% marks'
-    },
-    {
-      id: 2,
-      title: 'B.A. English Literature',
-      category: 'Arts',
-      duration: '3 years',
-      fee: 35000,
-      totalSeats: 50,
-      filledSeats: 42,
-      status: 'active',
-      description: 'Study of English literature from classic to contemporary works with focus on critical analysis.',
-      eligibility: '10+2 in any stream with minimum 55% marks'
-    },
-    {
-      id: 3,
-      title: 'M.Sc. Mathematics',
-      category: 'Science',
-      duration: '2 years',
-      fee: 50000,
-      totalSeats: 40,
-      filledSeats: 32,
-      status: 'active',
-      description: 'Advanced mathematical theories and applications with research components.',
-      eligibility: 'Bachelor\'s degree in Mathematics with minimum 60% marks'
-    },
-    {
-      id: 4,
-      title: 'B.Com. Accounting',
-      category: 'Commerce',
-      duration: '3 years',
-      fee: 40000,
-      totalSeats: 70,
-      filledSeats: 65,
-      status: 'active',
-      description: 'Professional accounting program with focus on financial management and taxation.',
-      eligibility: '10+2 with Commerce stream and minimum 55% marks'
-    }
-  ]);
+  // Transform real applications to match your UI format
+  const transformedApplications = realApplications.map((app: any) => ({
+    id: app.admission_id,
+    name: app.personalInfo ? `${app.personalInfo.first_name} ${app.personalInfo.last_name}` : 'N/A',
+    email: app.email,
+    course: app.academicInfo?.course_name || 'N/A',
+    status: app.application_status?.toLowerCase() || 'pending',
+    submittedDate: new Date(app.admission_timestamp).toLocaleDateString(),
+    phone: app.personalInfo?.phone || 'N/A',
+    academicScore: 'N/A',
+    address: 'N/A',
+    dateOfBirth: 'N/A',
+    previousEducation: 'N/A'
+  }));
+
+  // Transform real courses to match your UI format
+  const transformedCourses = realCourses.map((course: any) => ({
+    id: course.id,
+    title: course.name,
+    category: 'General',
+    duration: course.duration || 'N/A',
+    fee: parseFloat(course.fees) || 0,
+    totalSeats: course.courseSeats?.reduce((sum: number, seat: any) => sum + seat.seats, 0) || 0,
+    filledSeats: 0,
+    status: 'active',
+    description: course.eligibility || 'No description available',
+    eligibility: course.eligibility || 'No eligibility criteria specified'
+  }));
+
+  // Data loading effect
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        if (activeTab === 'overview') {
+          await refreshStats();
+          await refreshApplications();
+        } else if (activeTab === 'applications') {
+          await refreshApplications();
+        } else if (activeTab === 'courses') {
+          await refreshCourses();
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+
+    loadData();
+  }, [activeTab, refreshStats, refreshApplications, refreshCourses]);
+
+  // Use transformed data for filtering and display
+  const applications = transformedApplications;
+  const courses = transformedCourses;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -219,18 +185,75 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
     }
   };
 
-  const updateApplicationStatus = (applicationId: number, newStatus: string) => {
-    setApplications(prev => 
-      prev.map(app => 
-        app.id === applicationId ? { ...app, status: newStatus } : app
-      )
-    );
+ // Update the handleUpdateApplicationStatus function to ensure type safety
+const handleUpdateApplicationStatus = async (applicationId: string, newStatus: string) => {
+  try {
+    // Convert the string to the expected type
+    const status: 'Pending' | 'Approved' | 'Rejected' = 
+      newStatus === 'pending' ? 'Pending' :
+      newStatus === 'approved' ? 'Approved' :
+      newStatus === 'rejected' ? 'Rejected' : 'Pending';
+    
+    await updateApplicationStatus(applicationId, status);
+    // Context will automatically refresh
+  } catch (error) {
+    console.error('Error updating application status:', error);
+    alert('Failed to update application status');
+  }
+};
+
+  const handleDeleteApplication = async (applicationId: string) => {
+    if (window.confirm('Are you sure you want to delete this application?')) {
+      try {
+        await refreshApplications();
+      } catch (error) {
+        console.error('Error deleting application:', error);
+        alert('Failed to delete application');
+      }
+    }
   };
 
-  const deleteApplication = (applicationId: number) => {
-    setApplications(prev => prev.filter(app => app.id !== applicationId));
+  const handleAddNewCourse = async (courseData: any) => {
+    try {
+      await createCourse({
+        name: courseData.title,
+        fees: courseData.fee,
+        duration: courseData.duration,
+        eligibility: courseData.eligibility,
+      });
+      setShowAddCourseModal(false);
+    } catch (error) {
+      console.error('Error creating course:', error);
+      alert('Failed to create course');
+    }
   };
 
+  const handleUpdateCourse = async (courseId: number, updatedCourse: any) => {
+    try {
+      await updateCourse(courseId, {
+        name: updatedCourse.title,
+        fees: updatedCourse.fee,
+        duration: updatedCourse.duration,
+        eligibility: updatedCourse.eligibility,
+      });
+    } catch (error) {
+      console.error('Error updating course:', error);
+      alert('Failed to update course');
+    }
+  };
+
+  const handleDeleteCourse = async (courseId: number) => {
+    if (window.confirm('Are you sure you want to delete this course?')) {
+      try {
+        await deleteCourse(courseId);
+      } catch (error) {
+        console.error('Error deleting course:', error);
+        alert('Failed to delete course');
+      }
+    }
+  };
+
+  // Existing UI functions (unchanged)
   const viewApplicationDetails = (application: Application) => {
     setSelectedApplication(application);
     setShowApplicationModal(true);
@@ -239,24 +262,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
   const viewCourseDetails = (course: Course) => {
     setSelectedCourse(course);
     setShowCourseDetailsModal(true);
-  };
-
-  const addNewCourse = (course: Course) => {
-    const newId = Math.max(...courses.map(c => c.id), 0) + 1;
-    setCourses(prev => [...prev, { ...course, id: newId }]);
-    setShowAddCourseModal(false);
-  };
-
-  const updateCourse = (courseId: number, updatedCourse: Partial<Course>) => {
-    setCourses(prev => 
-      prev.map(course => 
-        course.id === courseId ? { ...course, ...updatedCourse } : course
-      )
-    );
-  };
-
-  const deleteCourse = (courseId: number) => {
-    setCourses(prev => prev.filter(course => course.id !== courseId));
   };
 
   const openManageSeats = (course: Course) => {
@@ -271,11 +276,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
         alert(`Error: Total seats cannot be less than filled seats (${selectedCourse.filledSeats})`);
         return;
       }
-      updateCourse(selectedCourse.id, { totalSeats: newSeats });
+      handleUpdateCourse(selectedCourse.id, { totalSeats: newSeats });
       setShowManageSeatsModal(false);
     }
   };
 
+  // Filtering and pagination (using transformed data)
   const filteredApplications = applications.filter(app => {
     const matchesSearch = app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          app.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -284,7 +290,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
     return matchesSearch && matchesStatus;
   });
 
-  // Pagination logic
   const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
   const currentApplications = filteredApplications.slice(
     (currentPage - 1) * itemsPerPage,
@@ -297,7 +302,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
     }
   };
 
-  // Define UserType based on expected user object shape
+  // User display name function (unchanged)
   type UserType = {
     name?: string;
     email?: string;
@@ -307,24 +312,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
   const getDisplayName = (user: UserType | null): string => {
     if (!user) return 'Student';
 
-    // Extract name from email
     if (user.email) {
       const nameFromEmail = user.email.split('@')[0];
-
-      // Remove numbers and symbols, keep only letters
       const cleanedName = nameFromEmail.replace(/[^a-zA-Z]/g, '');
-
-      // Capitalize first letter, lowercase rest
       return cleanedName
         ? cleanedName.charAt(0).toUpperCase() + cleanedName.slice(1).toLowerCase()
         : 'Student';
     }
 
-    // Fallback 2: Role-based default
     return user.role === 'admin' ? 'Administrator' : 'Student';
   };
 
-  // Application Detail Modal (View Only)
+  // Application Detail Modal (unchanged)
   const ApplicationModal = () => {
     if (!selectedApplication) return null;
 
@@ -438,7 +437,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
     );
   };
 
-  // Add Course Modal
+  // Add Course Modal (unchanged)
   const AddCourseModal = () => {
     const [formData, setFormData] = useState({
       title: '',
@@ -474,7 +473,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       if (validateForm()) {
-        addNewCourse(formData as Course);
+        handleAddNewCourse(formData);
       }
     };
 
@@ -636,7 +635,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
     );
   };
 
-  // Manage Seats Modal
+  // Manage Seats Modal (unchanged)
   const ManageSeatsModal = () => {
     if (!selectedCourse) return null;
 
@@ -700,7 +699,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
     );
   };
 
-  // Course Details Modal
+  // Course Details Modal (unchanged)
   const CourseDetailsModal = () => {
     if (!selectedCourse) return null;
 
@@ -792,26 +791,43 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
     );
   };
 
+  // Render functions with loading states
   const renderOverview = () => (
     <div className="space-y-6">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                <p className={`text-sm mt-1 ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                  {stat.change} from last month
-                </p>
-              </div>
-              <div className={`p-3 rounded-full bg-gray-50`}>
-                <stat.icon className={`h-6 w-6 ${stat.color}`} />
+        {statsLoading ? (
+          // Loading skeleton
+          Array(4).fill(0).map((_, index) => (
+            <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-20"></div>
+                  <div className="h-6 bg-gray-200 rounded w-12"></div>
+                  <div className="h-3 bg-gray-200 rounded w-16"></div>
+                </div>
+                <div className="p-3 rounded-full bg-gray-200"></div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        ) : (
+          statsData.map((stat, index) => (
+            <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  <p className={`text-sm mt-1 ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                    {stat.change} from last month
+                  </p>
+                </div>
+                <div className={`p-3 rounded-full bg-gray-50`}>
+                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Recent Applications */}
@@ -827,206 +843,239 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Applicant</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {applications.slice(0, 5).map((application) => (
-                <tr key={application.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{application.name}</p>
-                      <p className="text-sm text-gray-500">{application.email}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{application.course}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(application.status)}`}>
-                      {application.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{application.submittedDate}</td>
-                  <td className="px-6 py-4">
-                    <button 
-                      onClick={() => viewApplicationDetails(application)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                  </td>
+        {applicationsLoading ? (
+          <div className="p-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="text-gray-600 mt-2">Loading applications...</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Applicant</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {applications.slice(0, 5).map((application) => (
+                  <tr key={application.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{application.name}</p>
+                        <p className="text-sm text-gray-500">{application.email}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{application.course}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(application.status)}`}>
+                        {application.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{application.submittedDate}</td>
+                    <td className="px-6 py-4">
+                      <button 
+                        onClick={() => viewApplicationDetails(application)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
 
   const renderApplications = () => (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-          <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search applications..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-            </select>
-          </div>
-          <div className="flex space-x-2">
-            <button className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-              <Download className="h-4 w-4" />
-              <span>Export</span>
-            </button>
-            <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              <Filter className="h-4 w-4" />
-              <span>Filter</span>
-            </button>
-          </div>
+      {/* Loading state */}
+      {applicationsLoading && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-600 mt-2">Loading applications...</p>
         </div>
-      </div>
+      )}
 
-      {/* Applications Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Applicant</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Academic Score</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {currentApplications.map((application) => (
-                <tr key={application.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{application.name}</p>
-                      <p className="text-sm text-gray-500">{application.email}</p>
-                      <p className="text-sm text-gray-500">{application.phone}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{application.course}</td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{application.academicScore}</td>
-                  <td className="px-6 py-4">
-                    <select
-                      value={application.status}
-                      onChange={(e) => updateApplicationStatus(application.id, e.target.value)}
-                      className={`text-xs font-medium rounded-full px-3 py-1 border-0 ${getStatusColor(application.status)}`}
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="approved">Approved</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{application.submittedDate}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex space-x-2">
-                      <button 
-                        onClick={() => viewApplicationDetails(application)}
-                        className="text-blue-600 hover:text-blue-800"
-                        title="View Details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => updateApplicationStatus(application.id, 'approved')}
-                        className="text-green-600 hover:text-green-800"
-                        title="Approve Application"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => updateApplicationStatus(application.id, 'rejected')}
-                        className="text-red-600 hover:text-red-800"
-                        title="Reject Application"
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => deleteApplication(application.id)}
-                        className="text-gray-600 hover:text-gray-800"
-                        title="Delete Application"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {filteredApplications.length > itemsPerPage && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-700">
-              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredApplications.length)} of {filteredApplications.length} results
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`px-3 py-1 border rounded-md text-sm font-medium ${
-                    currentPage === page
-                      ? 'border-blue-500 bg-blue-500 text-white'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
+      {/* Filters and table */}
+      {!applicationsLoading && (
+        <>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+              <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search applications..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {page}
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+              <div className="flex space-x-2">
+                <button className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                  <Download className="h-4 w-4" />
+                  <span>Export</span>
                 </button>
-              ))}
-              
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
+                <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                  <Filter className="h-4 w-4" />
+                  <span>Filter</span>
+                </button>
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Applications Table */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            {filteredApplications.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p>No applications found</p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Applicant</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Course</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Academic Score</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {currentApplications.map((application) => (
+                        <tr key={application.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{application.name}</p>
+                              <p className="text-sm text-gray-500">{application.email}</p>
+                              <p className="text-sm text-gray-500">{application.phone}</p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{application.course}</td>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">{application.academicScore}</td>
+                          <td className="px-6 py-4">
+                            <select
+                              value={application.status}
+                              onChange={(e) => {
+                                const selectedStatus = e.target.value;
+                                if (['pending', 'approved', 'rejected'].includes(selectedStatus)) {
+                                  handleUpdateApplicationStatus(application.id.toString(), selectedStatus);
+                                }
+                              }}
+                              className={`text-xs font-medium rounded-full px-3 py-1 border-0 ${getStatusColor(application.status)}`}
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="approved">Approved</option>
+                              <option value="rejected">Rejected</option>
+                            </select>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">{application.submittedDate}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex space-x-2">
+                              <button 
+                                onClick={() => viewApplicationDetails(application)}
+                                className="text-blue-600 hover:text-blue-800"
+                                title="View Details"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleUpdateApplicationStatus(application.id.toString(), 'approved')}
+                                className="text-green-600 hover:text-green-800"
+                                title="Approve Application"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleUpdateApplicationStatus(application.id.toString(), 'rejected')}
+                                className="text-red-600 hover:text-red-800"
+                                title="Reject Application"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteApplication(application.id.toString())}
+                                className="text-gray-600 hover:text-gray-800"
+                                title="Delete Application"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {filteredApplications.length > itemsPerPage && (
+                  <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                    <div className="text-sm text-gray-700">
+                      Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredApplications.length)} of {filteredApplications.length} results
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </button>
+                      
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(page)}
+                          className={`px-3 py-1 border rounded-md text-sm font-medium ${
+                            currentPage === page
+                              ? 'border-blue-500 bg-blue-500 text-white'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                      
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -1044,84 +1093,107 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onNavigate }) => 
         </button>
       </div>
 
+      {/* Loading state */}
+      {coursesLoading && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-600 mt-2">Loading courses...</p>
+        </div>
+      )}
+
       {/* Courses Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {courses.map((course) => (
-          <div key={course.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
-              <div className="flex space-x-1">
-                <button 
-                  onClick={() => {
-                    // In a real app, this would open an edit modal
-                    console.log('Edit course:', course.id);
-                  }}
-                  className="text-blue-600 hover:text-blue-800"
-                  title="Edit Course"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-                <button 
-                  onClick={() => deleteCourse(course.id)}
-                  className="text-red-600 hover:text-red-800"
-                  title="Delete Course"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
+      {!coursesLoading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {courses.length === 0 ? (
+            <div className="col-span-full p-8 text-center text-gray-500">
+              <BookOpen className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <p>No courses found</p>
+              <button 
+                onClick={() => setShowAddCourseModal(true)}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Add Your First Course
+              </button>
             </div>
-            
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Category:</span>
-                <span className="text-sm font-medium text-gray-900">{course.category}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Duration:</span>
-                <span className="text-sm font-medium text-gray-900">{course.duration}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Fee:</span>
-                <span className="text-sm font-medium text-gray-900">₹{course.fee.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Seats:</span>
-                <span className="text-sm font-medium text-gray-900">{course.filledSeats}/{course.totalSeats}</span>
-              </div>
-            </div>
+          ) : (
+            courses.map((course) => (
+              <div key={course.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">{course.title}</h3>
+                  <div className="flex space-x-1">
+                    <button 
+                      onClick={() => {
+                        setSelectedCourse(course);
+                        // You can implement edit functionality here
+                      }}
+                      className="text-blue-600 hover:text-blue-800"
+                      title="Edit Course"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteCourse(course.id)}
+                      className="text-red-600 hover:text-red-800"
+                      title="Delete Course"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Category:</span>
+                    <span className="text-sm font-medium text-gray-900">{course.category}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Duration:</span>
+                    <span className="text-sm font-medium text-gray-900">{course.duration}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Fee:</span>
+                    <span className="text-sm font-medium text-gray-900">₹{course.fee.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Seats:</span>
+                    <span className="text-sm font-medium text-gray-900">{course.filledSeats}/{course.totalSeats}</span>
+                  </div>
+                </div>
 
-            <div className="mt-4">
-              <div className="flex justify-between text-sm text-gray-600 mb-2">
-                <span>Enrollment Progress</span>
-                <span>{Math.round((course.filledSeats / course.totalSeats) * 100)}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full"
-                  style={{ width: `${(course.filledSeats / course.totalSeats) * 100}%` }}
-                ></div>
-              </div>
-            </div>
+                <div className="mt-4">
+                  <div className="flex justify-between text-sm text-gray-600 mb-2">
+                    <span>Enrollment Progress</span>
+                    <span>{Math.round((course.filledSeats / course.totalSeats) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full"
+                      style={{ width: `${(course.filledSeats / course.totalSeats) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
 
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex space-x-2">
-                <button 
-                  onClick={() => viewCourseDetails(course)}
-                  className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                >
-                  View Details
-                </button>
-                <button 
-                  onClick={() => openManageSeats(course)}
-                  className="flex-1 px-3 py-2 text-sm bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  Manage Seats
-                </button>
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={() => viewCourseDetails(course)}
+                      className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      View Details
+                    </button>
+                    <button 
+                      onClick={() => openManageSeats(course)}
+                      className="flex-1 px-3 py-2 text-sm bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      Manage Seats
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 

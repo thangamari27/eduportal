@@ -2,7 +2,8 @@
 import React from 'react';
 import { AuthProvider } from './contexts/AuthContext';
 import { ApplicationProvider } from './contexts/ApplicationContext';
-import AppContent from './AppContent'; // Import the new component
+import AppContent from './AppContent'; 
+import { AdminProvider } from './contexts/AdminContext';
 
 function App() {
   const getAuthToken = () => {
@@ -11,9 +12,11 @@ function App() {
 
   return (
     <AuthProvider>
-      <ApplicationProvider token={getAuthToken() || undefined}>
-        <AppContent />
-      </ApplicationProvider>
+        <AdminProvider>
+            <ApplicationProvider token={getAuthToken() || undefined}>
+              <AppContent />
+            </ApplicationProvider>
+        </AdminProvider>
     </AuthProvider>
   );
 }

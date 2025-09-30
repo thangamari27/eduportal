@@ -27,8 +27,9 @@ interface Admin {
   token?: string;
 }
 
-class ApiService {
-  private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
+// ✅ Export the class so it can be extended
+export class ApiService {
+  protected async request(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${API_BASE_URL}${endpoint}`;
 
     try {
@@ -65,7 +66,7 @@ class ApiService {
     }
   }
 
-  private getAuthHeader(): { Authorization: string } | {} {
+  protected getAuthHeader(): { Authorization: string } | {} {
     const token = localStorage.getItem('authToken');
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
@@ -208,4 +209,5 @@ class ApiService {
   }
 }
 
+// ✅ Export instance as well for backward compatibility
 export const apiService = new ApiService();

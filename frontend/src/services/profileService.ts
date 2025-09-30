@@ -130,9 +130,11 @@ class ProfileService {
   }
 
   // Utility Methods
-  isAuthenticated(): boolean {
-    return !!(localStorage.getItem('authToken') || localStorage.getItem('token'));
-  }
+ isAuthenticated(): boolean {
+  const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+  const userType = localStorage.getItem('userType');
+  return !!(token && userType); // Both token AND userType must exist
+}
 
   isAdmin(): boolean {
     const userType = localStorage.getItem('userType');

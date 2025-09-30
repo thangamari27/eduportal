@@ -115,11 +115,11 @@ router.get('/profile-data', authenticateToken, async (req, res) => {
 });
 
 // -----------------
-// Admin Profile Routes
+// Admin Profile Routes - FIXED: All use authenticateAdmin
 // -----------------
 
 // Get Admin Profile
-router.get('/admin/profile', authenticateAdmin, async (req, res) => {
+router.get('/admin/profile', authenticateAdmin, async (req, res) => { // ✅ Fixed
   try {
     await userController.getAdminProfile(req, res);
   } catch (error) {
@@ -129,7 +129,7 @@ router.get('/admin/profile', authenticateAdmin, async (req, res) => {
 });
 
 // Update Admin Profile
-router.put('/admin/profile', authenticateAdmin, async (req, res) => {
+router.put('/admin/profile', authenticateAdmin, async (req, res) => { // ✅ Fixed
   try {
     if (!req.body.profileData) {
       return res.status(400).json({ success: false, error: 'Profile data is required' });
@@ -152,7 +152,7 @@ router.put('/admin/profile', authenticateAdmin, async (req, res) => {
 });
 
 // Helper route: Get admin profile data only
-router.get('/admin/profile-data', authenticateAdmin, async (req, res) => {
+router.get('/admin/profile-data', authenticateAdmin, async (req, res) => { // ✅ Fixed
   try {
     await userController.getAdminProfile(req, res); // Returns admin + profileData
   } catch (error) {
@@ -174,7 +174,7 @@ router.put('/change-password', authenticateToken, async (req, res) => {
 });
 
 // Admin: Get all users
-router.get('/admin/users', authenticateAdmin, async (req, res) => {
+router.get('/admin/users', authenticateAdmin, async (req, res) => { // ✅ Already correct
   try {
     await userController.getAllUsers(req, res);
   } catch (error) {

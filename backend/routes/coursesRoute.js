@@ -3,14 +3,14 @@ const router = express.Router();
 const courseController = require('../controllers/courseController');
 const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
 
-// User routes (require authentication)
+// Public routes (no authentication required)
 router.get('/', courseController.getAllCourses);
 router.get('/:id', courseController.getCourseById);
 router.get('/course-details', courseController.getAllCourseDetails);
 router.get('/course-seats', courseController.getAllCourseSeats);
 router.get('/course-details-seats/:courseId', courseController.getCourseDetailsAndSeats);
 
-// Admin routes (require admin authentication)
+// Admin routes (require admin authentication) - FIXED: All use authenticateAdmin
 router.post('/admin/course', authenticateAdmin, courseController.createCourse);
 router.get('/admin/all', authenticateAdmin, courseController.adminGetAllCourses);
 router.put('/admin/:id', authenticateAdmin, courseController.updateCourse);
